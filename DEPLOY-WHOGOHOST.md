@@ -26,6 +26,8 @@ Then zip everything **inside** the `dist` folder (not the folder itself). Includ
 
 Open your domain in a browser. You should see the alignment loading screen, then the intro slides.
 
+For demos on a computer, `yourdomain.com/iphone.html` shows the same app inside an iPhone frame.
+
 ## 3. Turn on HTTPS
 
 1. In cPanel, open **SSL/TLS Status** (or **SSL/TLS Manager**) and make sure your domain has a certificate. Most plans issue a free one automatically. It can take a few hours after the domain first points to the server.

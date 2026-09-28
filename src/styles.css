@@ -224,7 +224,7 @@ select.field { appearance: none; background-image: none; }
   align-items: center;
   border-top: 1px solid var(--line-soft);
   background: var(--surface);
-  padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 12px calc(6px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   min-height: var(--nav-h);
 }
 .bottom-nav a {
@@ -262,7 +262,7 @@ select.field { appearance: none; background-image: none; }
   animation: fade 0.2s ease;
 }
 .overlay.middle { align-items: center; }
-.sheet { width: 100%; padding: 16px 30px calc(24px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 12px; animation: rise 0.22s ease; }
+.sheet { width: 100%; padding: 16px 30px calc(24px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); display: grid; gap: 12px; animation: rise 0.22s ease; }
 .sheet-group { background: var(--surface); border-radius: 14px; overflow: hidden; }
 .sheet-group button {
   display: block; width: 100%;

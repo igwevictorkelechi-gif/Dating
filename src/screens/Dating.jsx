@@ -423,7 +423,7 @@ export function Chat() {
         <div ref={end} />
       </main>
 
-      <form onSubmit={send} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 8px calc(10px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid var(--line)' }}>
+      <form onSubmit={send} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 8px calc(10px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))', borderTop: '1px solid var(--line)' }}>
         <button type="button" className="icon-btn" aria-label="Send a picture" onClick={() => fileInput.current?.click()} style={{ color: 'var(--ink)' }}><ImagePlus size={24} /></button>
         <input
           value={text}

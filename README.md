@@ -14,6 +14,8 @@ npm run build    # production build in dist/ (static files, host anywhere)
 
 Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages, Netlify, Vercel or any static host with no server setup.
 
+**iPhone preview:** open `/iphone.html` (e.g. http://localhost:5173/iphone.html) to use the app inside an iPhone 15 Pro frame. Handy for demos on a computer; on a phone the frame drops away.
+
 **Hosting on WhoGoHost / Go54 (cPanel):** see [DEPLOY-WHOGOHOST.md](DEPLOY-WHOGOHOST.md). The build includes an `.htaccess` with compression, caching and security headers.
 
 ## What's built
