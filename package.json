@@ -1,0 +1,12 @@
+{
+  "name": "dating",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Heartline — a dating website starter",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
