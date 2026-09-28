@@ -14,6 +14,8 @@ npm run build    # production build in dist/ (static files, host anywhere)
 
 Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages, Netlify, Vercel or any static host with no server setup.
 
+**Hosting on WhoGoHost / Go54 (cPanel):** see [DEPLOY-WHOGOHOST.md](DEPLOY-WHOGOHOST.md). The build includes an `.htaccess` with compression, caching and security headers.
+
 ## What's built
 
 | Area | Screens |
