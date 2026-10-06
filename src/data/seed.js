@@ -9,24 +9,25 @@ export const CAUSES = ['Feminism', 'LGBTQ', 'BLM'];
 export const HABITS = ['Yes', 'No', 'Sometimes'];
 export const GENDERS = ['Male', 'Female', 'Other'];
 export const INTERESTED_IN = ['Men', 'Women', 'Both'];
+export const LOOKING_FOR = ['Long-term relationship', 'Something casual', 'New friends', 'Still figuring it out'];
 
 export const PEOPLE = [
   {
-    id: 'ada', name: 'Ada Chisom', username: 'ada_chisom', age: 24, gender: 'Female', location: 'Ikeja, Nigeria',
+    id: 'ada', name: 'Ada Chisom', username: 'ada_chisom', age: 24, gender: 'Female', location: 'Ikeja, Nigeria', job: 'Librarian', lookingFor: 'Long-term relationship',
     spiritual: 'Agnostic', political: 'Liberal', orientation: 'Straight', causes: ['Feminism'],
     hobbies: ['Reading', 'Fishing', 'Skating'], smoke: 'No', drink: 'Yes',
     theory: 'Pigeons are government drones. Have you ever seen a baby pigeon?',
     bio: 'Books, beaches and bad puns.', followers: 1234, following: 310, likesYou: true, hue: 18,
   },
   {
-    id: 'george', name: 'George Laura', username: 'georgelaura', age: 28, gender: 'Male', location: 'Lekki, Nigeria',
+    id: 'george', name: 'George Laura', username: 'georgelaura', age: 28, gender: 'Male', location: 'Lekki, Nigeria', job: 'Fitness coach', lookingFor: 'Long-term relationship',
     spiritual: 'Spiritualist', political: 'Moderate', orientation: 'Straight', causes: ['BLM'],
     hobbies: ['Gym', 'Cycling'], smoke: 'No', drink: 'Sometimes',
     theory: 'The moon landing was real, but the moon itself is a hologram.',
     bio: 'Chasing sunsets and good conversations.', followers: 842, following: 390, likesYou: true, hue: 140,
   },
   {
-    id: 'laura', name: 'Laura the explorer', username: 'laura_explores', age: 26, gender: 'Female', location: 'Abuja, Nigeria',
+    id: 'laura', name: 'Laura the explorer', username: 'laura_explores', age: 26, gender: 'Female', location: 'Abuja, Nigeria', job: 'Travel writer', lookingFor: 'New friends',
     spiritual: 'Spiritualist', political: 'A-political', orientation: 'Bi-sexual', causes: ['LGBTQ', 'Feminism'],
     hobbies: ['Sky diving', 'Cycling', 'Meditating'], smoke: 'No', drink: 'Sometimes',
     theory: 'Every airport is secretly the same airport.',
@@ -34,7 +35,7 @@ export const PEOPLE = [
     creator: true,
   },
   {
-    id: 'mimi', name: 'Mimi Adeoti', username: 'mimi_adeoti', age: 25, gender: 'Female', location: 'Yaba, Nigeria',
+    id: 'mimi', name: 'Mimi Adeoti', username: 'mimi_adeoti', age: 25, gender: 'Female', location: 'Yaba, Nigeria', job: 'Florist', lookingFor: 'Long-term relationship',
     spiritual: 'Traditionalist', political: 'Moderate', orientation: 'Straight', causes: ['Feminism'],
     hobbies: ['Gardening', 'Reading'], smoke: 'No', drink: 'No',
     theory: 'Plants can hear us gossiping about them.',
@@ -42,7 +43,7 @@ export const PEOPLE = [
     creator: true,
   },
   {
-    id: 'jack', name: 'Mr Jack', username: 'mr_jack', age: 31, gender: 'Male', location: 'Victoria Island, Nigeria',
+    id: 'jack', name: 'Mr Jack', username: 'mr_jack', age: 31, gender: 'Male', location: 'Victoria Island, Nigeria', job: 'Chef', lookingFor: 'Something casual',
     spiritual: 'Atheist', political: 'Liberal', orientation: 'Straight', causes: ['BLM'],
     hobbies: ['Fishing', 'Gym'], smoke: 'Sometimes', drink: 'Yes',
     theory: 'Birds stopped being real in 1986.',
@@ -50,7 +51,7 @@ export const PEOPLE = [
     creator: true,
   },
   {
-    id: 'tomi', name: 'Tomi Bankole', username: 'tomi.b', age: 27, gender: 'Female', location: 'Ibadan, Nigeria',
+    id: 'tomi', name: 'Tomi Bankole', username: 'tomi.b', age: 27, gender: 'Female', location: 'Ibadan, Nigeria', job: 'Yoga teacher', lookingFor: 'Still figuring it out',
     spiritual: 'Spiritualist', political: 'Moderate', orientation: 'Straight', causes: ['Feminism', 'BLM'],
     hobbies: ['Meditating', 'Reading', 'Gardening'], smoke: 'No', drink: 'Sometimes',
     theory: 'Cats are running a long con on all of us.',
@@ -58,7 +59,7 @@ export const PEOPLE = [
     creator: true,
   },
   {
-    id: 'emeka', name: 'Emeka Obi', username: 'emeka_obi', age: 29, gender: 'Male', location: 'Enugu, Nigeria',
+    id: 'emeka', name: 'Emeka Obi', username: 'emeka_obi', age: 29, gender: 'Male', location: 'Enugu, Nigeria', job: 'Software engineer', lookingFor: 'Long-term relationship',
     spiritual: 'Agnostic', political: 'A-political', orientation: 'Straight', causes: [],
     hobbies: ['Skating', 'Cycling', 'Gym'], smoke: 'No', drink: 'Yes',
     theory: 'Traffic lights know when you are late.',
@@ -66,7 +67,7 @@ export const PEOPLE = [
     creator: true,
   },
   {
-    id: 'zainab', name: 'Zainab Musa', username: 'zee_musa', age: 30, gender: 'Female', location: 'Kano, Nigeria',
+    id: 'zainab', name: 'Zainab Musa', username: 'zee_musa', age: 30, gender: 'Female', location: 'Kano, Nigeria', job: 'Lawyer', lookingFor: 'Long-term relationship',
     spiritual: 'Traditionalist', political: 'Conservative', orientation: 'Straight', causes: [],
     hobbies: ['Reading', 'Gardening'], smoke: 'No', drink: 'No',
     theory: 'Socks do not get lost. They leave.',
@@ -74,7 +75,7 @@ export const PEOPLE = [
     creator: true,
   },
   {
-    id: 'kunle', name: 'Kunle Ade', username: 'kunle_ade', age: 33, gender: 'Male', location: 'Surulere, Nigeria',
+    id: 'kunle', name: 'Kunle Ade', username: 'kunle_ade', age: 33, gender: 'Male', location: 'Surulere, Nigeria', job: 'Architect', lookingFor: 'Long-term relationship',
     spiritual: 'Spiritualist', political: 'Moderate', orientation: 'Straight', causes: ['BLM'],
     hobbies: ['Fishing', 'Reading', 'Sky diving'], smoke: 'No', drink: 'Sometimes',
     theory: 'Lagos traffic is a social experiment.',

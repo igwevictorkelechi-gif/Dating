@@ -5,9 +5,8 @@ import { Login, Otp, Signup, Splash, Welcome } from './screens/Auth.jsx';
 import {
   SetupAudio, SetupBeliefs, SetupCreators, SetupHobbies, SetupOrientation, SetupPhotos, SetupProfile,
 } from './screens/Setup.jsx';
-import {
-  CreatePost, EditProfile, Home, MyProfile, Notifications, UserProfile,
-} from './screens/Social.jsx';
+import { CreatePost, Home, Notifications } from './screens/Social.jsx';
+import { EditProfile, MyProfile, UserProfile } from './screens/Profile.jsx';
 import {
   Chat, Chats, Discover, Filters, Liked, Match, MyDatingProfile,
 } from './screens/Dating.jsx';

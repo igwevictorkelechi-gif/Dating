@@ -10,6 +10,7 @@ const EMPTY_PROFILE = {
   firstName: '', lastName: '', username: '', gender: '', dob: { d: '', m: '', y: '' }, interestedIn: '',
   orientation: '', spiritual: '', political: '', causes: [], smoke: '', drink: '',
   hobbies: [], audio: null, photos: [], bio: '', avatar: null,
+  location: '', job: '', lookingFor: '',
 };
 
 export const INITIAL = {

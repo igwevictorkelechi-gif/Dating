@@ -15,7 +15,7 @@ function useStepNav(step) {
   const [params] = useSearchParams();
   const editing = params.get('edit') === '1';
   return () => {
-    if (editing) return navigate('/dating/me');
+    if (editing) return navigate(params.get('back') || '/dating/me');
     const next = ORDER[ORDER.indexOf(step) + 1];
     navigate(`/setup/${next}`);
   };

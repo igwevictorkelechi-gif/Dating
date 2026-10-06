@@ -24,7 +24,8 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 | --- | --- |
 | Onboarding | Splash, 3 intro slides, create account, login, OTP |
 | Dating profile setup | Name/gender/birthday/interested in, orientation, spiritual & political views, causes, smoking & drinking, hobbies, conspiracy-theory voice recording, photo upload (at least 2), follow 5 creators |
-| Social | Home feed with search, notifications, create post (notes, images, video), likes & comments, your profile, other people's profiles with follow, edit profile & photo |
+| Profile | Photo, name & age, location, work, bio and what you're looking for; posts / followers / following / matches; profile-strength meter with the next thing to add; Posts, Photos (grid + viewer) and About tabs (basics, beliefs, causes, lifestyle, hobbies, voice note); Edit profile & Preview on yours, Follow and Like/Message on other people's |
+| Social | Home feed with search, notifications, create post (notes, images, video), likes & comments |
 | Dating | Swipe deck (drag, buttons or ← → ↑ keys), profile details under the card, super like, filters (who & age range), "It's aligning!" match screen, chats list, chat with pictures, close/report chat, people you liked, your dating profile preview with edit links |
 | Settings | Account, change password, light/dark appearance, help & support, log out, delete account |
 
@@ -38,7 +39,7 @@ src/
   styles.css          design tokens (sampled from Figma) and shared styles
   data/seed.js        sample people, posts, notifications and option lists
   components/         Logo, generated artwork, nav bars, chips, dialogs, post card
-  screens/            Auth, Setup, Social, Dating, Settings
+  screens/            Auth, Setup, Social, Profile, Dating, Settings
 ```
 
 ## Current limitations (prototype)

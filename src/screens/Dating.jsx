@@ -487,7 +487,7 @@ export function MyDatingProfile() {
   const { state, self } = useApp();
   const me = state.me;
   const card = {
-    ...self, age: ageFromDob(me.dob), spiritual: me.spiritual, gender: me.gender, orientation: me.orientation,
+    ...self, age: ageFromDob(me.dob), location: me.location, spiritual: me.spiritual, gender: me.gender, orientation: me.orientation,
     political: me.political, hobbies: me.hobbies, causes: me.causes, smoke: me.smoke, drink: me.drink,
   };
   const edits = [
