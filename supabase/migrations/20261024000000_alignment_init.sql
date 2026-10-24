@@ -91,11 +91,11 @@ create trigger profile_private_sync_age
   for each row execute function public.sync_age();
 
 -- Ages roll over on birthdays; refresh them once a day.
-select cron.schedule('alignment-refresh-ages', '15 0 * * *', $$
+select cron.schedule('alignment-refresh-ages', '15 0 * * *', $cron$
   update public.profiles p set age = public.age_from_dob(pp.dob)
   from public.profile_private pp
   where pp.id = p.id and p.age is distinct from public.age_from_dob(pp.dob)
-$$);
+$cron$);
 
 create function public.touch_updated_at()
 returns trigger language plpgsql set search_path = '' as $$
