@@ -59,5 +59,6 @@ It was tested on Apache 2.4, the web server cPanel hosting uses, at the domain r
 
 ## Things to know before going live
 
-- **There's no backend yet.** Accounts, posts, matches and chats are saved only in each visitor's own browser, so people can't see each other. The OTP step accepts any 4 digits. Add a real backend before promoting the site.
+- **Finish the backend setup first.** See [SUPABASE-SETUP.md](SUPABASE-SETUP.md), and set the Site URL there to the domain you're uploading to.
+
 - The support email address in `src/data/seed.js` is a placeholder.

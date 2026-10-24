@@ -9,15 +9,19 @@ export function Splash() {
   const navigate = useNavigate();
   const { state } = useApp();
   const [progress, setProgress] = useState(8);
+  const [minTimeDone, setMinTimeDone] = useState(false);
 
   useEffect(() => {
     const tick = setInterval(() => setProgress((p) => Math.min(100, p + 12)), 120);
-    const done = setTimeout(() => {
-      if (state.account && state.verified) navigate(state.onboarded ? '/home' : '/setup/profile', { replace: true });
-      else navigate('/welcome', { replace: true });
-    }, 1300);
+    const done = setTimeout(() => setMinTimeDone(true), 1300);
     return () => { clearInterval(tick); clearTimeout(done); };
-  }, [navigate, state.account, state.verified, state.onboarded]);
+  }, []);
+
+  useEffect(() => {
+    if (!minTimeDone || !state.authReady) return;
+    if (state.verified) navigate(state.onboarded ? '/home' : '/setup/profile', { replace: true });
+    else navigate('/welcome', { replace: true });
+  }, [minTimeDone, state.authReady, state.verified, state.onboarded, navigate]);
 
   return (
     <main className="screen center" style={{ gap: 90 }}>
@@ -84,40 +88,57 @@ export function Welcome() {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^\+?[0-9\s-]{7,15}$/;
+
+// Where to go once someone is signed in.
+function useAfterSignIn() {
+  const navigate = useNavigate();
+  const { state } = useApp();
+  useEffect(() => {
+    if (state.verified) navigate(state.onboarded ? '/home' : '/setup/profile', { replace: true });
+  }, [state.verified, state.onboarded, navigate]);
+}
 
 export function Signup() {
   const navigate = useNavigate();
   const { signUp } = useApp();
-  const [form, setForm] = useState({ contact: '', password: '', confirm: '' });
+  useAfterSignIn();
+  const [form, setForm] = useState({ email: '', password: '', confirm: '' });
   const [touched, setTouched] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
-  const contactOk = EMAIL_RE.test(form.contact.trim()) || PHONE_RE.test(form.contact.trim());
+  const emailOk = EMAIL_RE.test(form.email.trim());
   const passOk = form.password.length >= 8;
   const matchOk = form.password === form.confirm;
-  const valid = contactOk && passOk && matchOk && form.confirm;
+  const valid = emailOk && passOk && matchOk && form.confirm;
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setTouched(true);
-    if (!valid) return;
-    signUp(form.contact.trim());
-    navigate('/otp');
+    if (!valid || busy) return;
+    setBusy(true);
+    setError('');
+    const res = await signUp(form.email.trim().toLowerCase(), form.password);
+    setBusy(false);
+    if (res.error) setError(res.error);
+    else if (res.needsCode) navigate('/otp');
   };
 
   return (
     <form className="screen" onSubmit={submit} noValidate>
       <TopBar title="Create an account" />
-      <input className="field" placeholder="Email or phone number" autoComplete="username" value={form.contact} onChange={set('contact')} aria-label="Email or phone number" />
+      <input className="field" type="email" placeholder="Email address" autoComplete="email" value={form.email} onChange={set('email')} aria-label="Email address" />
       <input className="field" type="password" placeholder="Password" autoComplete="new-password" value={form.password} onChange={set('password')} aria-label="Password" />
       <input className="field" type="password" placeholder="Confirm Password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} aria-label="Confirm password" />
-      {touched && !contactOk && <p className="error">Enter a valid email address or phone number.</p>}
-      {touched && contactOk && !passOk && <p className="error">Use at least 8 characters for your password.</p>}
+      {touched && !emailOk && <p className="error">Enter a valid email address.</p>}
+      {touched && emailOk && !passOk && <p className="error">Use at least 8 characters for your password.</p>}
       {touched && passOk && !matchOk && <p className="error">The passwords don’t match.</p>}
-      {!touched && <p className="hint">Passwords need at least 8 characters.</p>}
+      {error && <p className="error">{error}</p>}
+      {!touched && !error && <p className="hint">Passwords need at least 8 characters. We’ll email you a code to confirm it’s you.</p>}
       <div className="grow" />
-      <button type="submit" className="btn btn-primary btn-block" disabled={!valid}>Next</button>
+      <button type="submit" className="btn btn-primary btn-block" disabled={!valid || busy}>{busy ? 'Creating account…' : 'Next'}</button>
+      <button type="button" className="link-btn" onClick={() => navigate('/login')}>I already have an account</button>
     </form>
   );
 }
@@ -125,64 +146,85 @@ export function Signup() {
 export function Login() {
   const navigate = useNavigate();
   const { logIn } = useApp();
-  const [username, setUsername] = useState('');
+  useAfterSignIn();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const valid = username.trim() && password;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const valid = EMAIL_RE.test(email.trim()) && password;
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (!valid) return;
-    logIn(username.trim());
-    navigate('/otp');
+    if (!valid || busy) return;
+    setBusy(true);
+    setError('');
+    const res = await logIn(email.trim().toLowerCase(), password);
+    setBusy(false);
+    if (res.error) setError(res.error);
+    else if (res.needsCode) navigate('/otp');
   };
 
   return (
     <form className="screen" onSubmit={submit} noValidate>
       <TopBar title="Login" />
-      <input className="field" placeholder="Username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} aria-label="Username" />
+      <input className="field" type="email" placeholder="Email address" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email address" />
       <input className="field" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-label="Password" />
+      {error && <p className="error">{error}</p>}
       <div className="grow" />
-      <button type="submit" className="btn btn-primary btn-block" disabled={!valid}>Next</button>
+      <button type="submit" className="btn btn-primary btn-block" disabled={!valid || busy}>{busy ? 'Logging in…' : 'Next'}</button>
+      <button type="button" className="link-btn" onClick={() => navigate('/signup')}>Create an account instead</button>
     </form>
   );
 }
 
+const CODE_LENGTH = 6;
+
 export function Otp() {
   const navigate = useNavigate();
-  const { state, verify } = useApp();
-  const [digits, setDigits] = useState(['', '', '', '']);
+  const { state, verifyCode, resendCode } = useApp();
+  useAfterSignIn();
+  const [digits, setDigits] = useState(Array(CODE_LENGTH).fill(''));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const refs = useRef([]);
   const complete = digits.every((d) => /^[0-9]$/.test(d));
+
+  useEffect(() => {
+    if (!state.pendingEmail && state.authReady && !state.verified) navigate('/signup', { replace: true });
+  }, [state.pendingEmail, state.authReady, state.verified, navigate]);
 
   const setDigit = (i, v) => {
     const clean = v.replace(/\D/g, '');
     if (clean.length > 1) { // pasted a whole code
-      const next = clean.slice(0, 4).split('');
-      setDigits([0, 1, 2, 3].map((n) => next[n] || ''));
-      refs.current[Math.min(3, next.length)]?.focus();
+      const next = clean.slice(0, CODE_LENGTH).split('');
+      setDigits(Array.from({ length: CODE_LENGTH }, (_, n) => next[n] || ''));
+      refs.current[Math.min(CODE_LENGTH - 1, next.length)]?.focus();
       return;
     }
     const next = [...digits];
     next[i] = clean;
     setDigits(next);
-    if (clean && i < 3) refs.current[i + 1]?.focus();
+    if (clean && i < CODE_LENGTH - 1) refs.current[i + 1]?.focus();
   };
 
   const onKeyDown = (i, e) => {
     if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus();
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (!complete) return;
-    verify();
-    navigate(state.onboarded ? '/home' : '/setup/profile', { replace: true });
+    if (!complete || busy) return;
+    setBusy(true);
+    setError('');
+    const res = await verifyCode(digits.join(''));
+    setBusy(false);
+    if (res.error) setError(res.error);
   };
 
   return (
     <form className="screen" onSubmit={submit} noValidate>
       <TopBar title="Enter OTP" />
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
         {digits.map((d, i) => (
           <input
             key={i}
@@ -192,19 +234,20 @@ export function Otp() {
             onKeyDown={(e) => onKeyDown(i, e)}
             inputMode="numeric"
             autoComplete={i === 0 ? 'one-time-code' : 'off'}
-            maxLength={4}
+            maxLength={CODE_LENGTH}
             aria-label={`Digit ${i + 1}`}
             className="field green"
-            style={{ width: 60, height: 60, textAlign: 'center', fontSize: 24, padding: 0, marginBottom: 0 }}
+            style={{ width: '100%', maxWidth: 52, height: 58, textAlign: 'center', fontSize: 22, padding: 0, marginBottom: 0 }}
           />
         ))}
       </div>
       <p className="hint" style={{ marginTop: 20 }}>
-        We sent a 4-digit code to {state.account?.email || state.account?.username || 'you'}.
-        While the app is in preview, any 4 digits will work.
+        We emailed a {CODE_LENGTH}-digit code to <strong>{state.pendingEmail || 'you'}</strong>. It can take a minute to arrive; check your spam folder too.
       </p>
-      <div className="grow" style={{ maxHeight: 180 }} />
-      <button type="submit" className="btn btn-primary btn-block" disabled={!complete}>Next</button>
+      {error && <p className="error">{error}</p>}
+      <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', paddingLeft: 0 }} onClick={resendCode}>Send a new code</button>
+      <div className="grow" style={{ maxHeight: 160 }} />
+      <button type="submit" className="btn btn-primary btn-block" disabled={!complete || busy}>{busy ? 'Checking…' : 'Next'}</button>
     </form>
   );
 }

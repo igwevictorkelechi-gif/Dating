@@ -16,6 +16,8 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 
 **iPhone preview:** open `/iphone.html` (e.g. http://localhost:5173/iphone.html) to use the app inside an iPhone 15 Pro frame. Handy for demos on a computer; on a phone the frame drops away.
 
+**Backend:** Supabase (accounts, database, file storage, live chat). See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) for the dashboard steps to finish before launch.
+
 **Hosting on WhoGoHost / Go54 (cPanel):** see [DEPLOY-WHOGOHOST.md](DEPLOY-WHOGOHOST.md). The build includes an `.htaccess` with compression, caching and security headers.
 
 ## What's built
@@ -35,17 +37,19 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 src/
   main.jsx            app entry (router + state provider)
   App.jsx             all routes and sign-in guards
-  store.jsx           app state, actions, helpers (saved to localStorage)
+  store.jsx           app state and actions, backed by Supabase
+  lib/supabase.js     Supabase client and file-upload helpers
   styles.css          design tokens (sampled from Figma) and shared styles
-  data/seed.js        sample people, posts, notifications and option lists
+  data/seed.js        option lists (hobbies, causes, …)
   components/         Logo, generated artwork, nav bars, chips, dialogs, post card
   screens/            Auth, Setup, Social, Profile, Dating, Settings
+supabase/migrations/  database schema, security rules, storage and realtime setup
 ```
 
-## Current limitations (prototype)
+## Before launch
 
-- **No backend yet.** Accounts, profiles, posts, likes, matches and chats are saved only in the visitor's own browser. Passwords are not stored or checked, and the OTP step accepts any 4 digits. The next step is a real backend (for example Supabase for auth, database and storage, with realtime chat).
-- **Sample people.** Profiles, posts and notifications come from `src/data/seed.js`. Chat replies are canned.
+- **Finish the Supabase steps** in [SUPABASE-SETUP.md](SUPABASE-SETUP.md): run the last SQL file (Delete account), set the Site URL, put the code in the sign-up email, and connect your own email sender so emails reach everyone.
+- **Sign-up is by email.** Phone-number sign-up needs an SMS provider (paid) and can be added later.
 - **Artwork.** The logo, onboarding illustrations and photo placeholders are redrawn in code because the Figma plan's API limit blocked exporting the originals. Drop the exported files into `public/` and swap them in `src/components/Logo.jsx` and `src/components/Art.jsx`.
-- **Media limits.** Uploaded pictures are resized. Videos are capped at 4 MB and voice notes at 30 seconds so they fit in browser storage.
+- **Media limits.** Pictures are resized before upload; videos are capped at 10 MB and voice notes at 30 seconds.
 - The support email in `src/data/seed.js` is a placeholder.

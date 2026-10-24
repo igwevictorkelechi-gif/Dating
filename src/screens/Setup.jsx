@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Mic, Pause, Play, Plus, RotateCcw, Square, X, Check } from 'lucide-react';
 import { ageFromDob, resizeImage, useApp } from '../store.jsx';
 import {
-  CAUSES, GENDERS, HABITS, HOBBIES, INTERESTED_IN, ORIENTATIONS, PEOPLE, POLITICAL, SPIRITUAL,
+  CAUSES, GENDERS, HABITS, HOBBIES, INTERESTED_IN, ORIENTATIONS, POLITICAL, SPIRITUAL,
 } from '../data/seed.js';
 import { Avatar, CheckRow, ChipGroup, StepScreen } from '../components/ui.jsx';
 
@@ -39,7 +39,7 @@ export function SetupProfile() {
   const selectStyle = { width: 'auto', height: 40, marginBottom: 0, padding: '0 12px', borderColor: 'var(--green)', borderRadius: 8, fontSize: 14 };
 
   return (
-    <StepScreen title="Create dating profile" canNext={valid} onNext={() => { saveProfile({ ...f, firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: f.username.trim() }); setFilters({ ...state.filters, seeking: f.interestedIn }); next(); }}>
+    <StepScreen title="Create dating profile" canNext={valid} onNext={async () => { const r = await saveProfile({ ...f, firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: f.username.trim() }); if (r.error) return; setFilters({ ...state.filters, seeking: f.interestedIn }); next(); }}>
       <p className="subtitle">Tell us a bit about yourself</p>
       <p className="label" style={{ marginTop: 0, fontSize: 14 }}>Full name</p>
       <div className="field-row">
@@ -79,7 +79,7 @@ export function SetupOrientation() {
   const next = useStepNav('orientation');
   const [value, setValue] = useState(state.me.orientation);
   return (
-    <StepScreen canNext={!!value} onNext={() => { saveProfile({ orientation: value }); next(); }}>
+    <StepScreen canNext={!!value} onNext={async () => { if (!(await saveProfile({ orientation: value })).error) next(); }}>
       <h1 className="title-left">How do you identify yourself?</h1>
       <p className="subtitle">Feel free to share your sexual orientation</p>
       <div className="check-list">
@@ -99,7 +99,7 @@ export function SetupBeliefs() {
   const set = (k) => (v) => setF({ ...f, [k]: v });
   const valid = f.spiritual && f.political && f.smoke && f.drink;
   return (
-    <StepScreen title="What is your spiritual orientation?" canNext={valid} onNext={() => { saveProfile(f); next(); }}>
+    <StepScreen title="What is your spiritual orientation?" canNext={valid} onNext={async () => { if (!(await saveProfile(f)).error) next(); }}>
       <ChipGroup options={SPIRITUAL} value={f.spiritual} onChange={set('spiritual')} />
       <p className="label">What is your political view?</p>
       <ChipGroup options={POLITICAL} value={f.political} onChange={set('political')} />
@@ -118,7 +118,7 @@ export function SetupHobbies() {
   const next = useStepNav('hobbies');
   const [hobbies, setHobbies] = useState(state.me.hobbies);
   return (
-    <StepScreen canNext={hobbies.length > 0} onNext={() => { saveProfile({ hobbies }); next(); }}>
+    <StepScreen canNext={hobbies.length > 0} onNext={async () => { if (!(await saveProfile({ hobbies })).error) next(); }}>
       <h1 className="title-left" style={{ marginBottom: 16 }}>Share your interest and hobbies</h1>
       <ChipGroup options={HOBBIES} value={hobbies} onChange={setHobbies} />
       <p className="hint" style={{ marginTop: 16 }}>Pick as many as you like.</p>
@@ -235,7 +235,7 @@ export function SetupAudio() {
   return (
     <StepScreen
       canNext={!!audio && !recording}
-      onNext={() => { saveProfile({ audio }); next(); }}
+      onNext={async () => { if (!(await saveProfile({ audio })).error) next(); }}
       footer={!audio && <button type="button" className="link-btn" onClick={next}>Skip for now</button>}
     >
       <h1 className="title-left" style={{ marginBottom: 20 }}>Tell us your biggest conspiracy theory</h1>
@@ -288,7 +288,7 @@ export function SetupPhotos() {
   };
 
   return (
-    <StepScreen canNext={photos.length >= 2} onNext={() => { saveProfile({ photos, avatar: state.me.avatar || photos[0] }); next(); }}>
+    <StepScreen canNext={photos.length >= 2} onNext={async () => { if (!(await saveProfile({ photos })).error) next(); }}>
       <h1 className="title-left" style={{ marginBottom: 24 }}>
         {photos.length ? 'Upload at least two pictures' : 'Upload some of your favourite pictures'}
       </h1>
@@ -328,33 +328,43 @@ export function SetupPhotos() {
 
 export function SetupCreators() {
   const navigate = useNavigate();
-  const { state, update, finishOnboarding } = useApp();
-  const creators = PEOPLE.filter((p) => p.creator);
-  const [picked, setPicked] = useState(state.following.filter((id) => creators.some((c) => c.id === id)));
+  const { followMany, finishOnboarding, suggestedPeople } = useApp();
+  const [people, setPeople] = useState(null);
+  const [picked, setPicked] = useState([]);
   const toggle = (id) => setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
+
+  useEffect(() => { suggestedPeople().then(setPeople); }, [suggestedPeople]);
+
+  // Ask for five, or everyone available while the community is still small.
+  const need = Math.min(5, people?.length ?? 0);
 
   return (
     <StepScreen
-      canNext={picked.length >= 5}
-      onNext={() => {
-        update((s) => ({ following: [...new Set([...s.following, ...picked])] }));
-        finishOnboarding();
-        navigate('/home', { replace: true });
+      canNext={people !== null && picked.length >= need}
+      nextLabel={people?.length ? 'Next' : 'Finish'}
+      onNext={async () => {
+        await followMany(picked);
+        const r = await finishOnboarding();
+        if (!r.error) navigate('/home', { replace: true });
       }}
     >
-      <h1 className="title-left" style={{ marginBottom: 16 }}>Follow any five of these creators so your feed won’t be empty.</h1>
+      <h1 className="title-left" style={{ marginBottom: 16 }}>
+        {people?.length ? `Follow ${need === 5 ? 'any five' : need === 1 ? 'this person' : `these ${need}`} so your feed won’t be empty.` : 'You’re one of the first here!'}
+      </h1>
+      {people === null && <p className="hint">Finding people for you…</p>}
+      {people?.length === 0 && <p className="subtitle">There’s no one to follow yet. Invite your friends, and their posts will show up in your feed.</p>}
       <div className="check-list">
-        {creators.map((c) => (
+        {(people || []).map((c) => (
           <CheckRow key={c.id} selected={picked.includes(c.id)} onClick={() => toggle(c.id)}>
             <Avatar person={c} size={34} />
             <span style={{ display: 'grid' }}>
               <span>{c.name}</span>
-              <small style={{ color: 'var(--muted)' }}>{c.followers.toLocaleString()} followers</small>
+              <small style={{ color: 'var(--muted)' }}>@{c.username}</small>
             </span>
           </CheckRow>
         ))}
       </div>
-      <p className="hint" style={{ marginTop: 12 }}>{picked.length} of 5 selected</p>
+      {people?.length > 0 && <p className="hint" style={{ marginTop: 12 }}>{picked.length} of {need} selected</p>}
     </StepScreen>
   );
 }

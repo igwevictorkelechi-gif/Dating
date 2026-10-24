@@ -14,11 +14,15 @@ import {
   Account, Appearance, ChangePassword, Help, Settings,
 } from './screens/Settings.jsx';
 
-// Signed in and code verified
+function Loading() {
+  return <main className="screen center"><p className="hint">Loading…</p></main>;
+}
+
+// Signed in (Supabase session)
 function RequireAuth() {
   const { state } = useApp();
-  if (!state.account) return <Navigate to="/welcome" replace />;
-  if (!state.verified) return <Navigate to="/otp" replace />;
+  if (!state.authReady) return <Loading />;
+  if (!state.verified) return <Navigate to="/welcome" replace />;
   return <Outlet />;
 }
 

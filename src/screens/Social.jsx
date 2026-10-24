@@ -1,20 +1,29 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bell, ImagePlus, Plus, Search, Video, X } from 'lucide-react';
 import { fileToDataUrl, resizeImage, timeAgo, useApp } from '../store.jsx';
-import { NOTIFICATIONS, PEOPLE } from '../data/seed.js';
 import { Avatar, BottomNav, TopBar } from '../components/ui.jsx';
 import { LogoMark } from '../components/Logo.jsx';
 import PostCard from '../components/PostCard.jsx';
 
 export function Home() {
-  const { posts, state } = useApp();
+  const { posts, state, loadFeed, searchPeople } = useApp();
   const [query, setQuery] = useState('');
-  const q = query.trim().toLowerCase();
-  const results = q
-    ? PEOPLE.filter((p) => p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)).slice(0, 6)
-    : [];
-  // People you follow first, then everyone else, newest first within each group.
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const q = query.trim();
+  const unread = state.notifications.some((n) => !n.read);
+
+  useEffect(() => { loadFeed().finally(() => setLoading(false)); }, [loadFeed]);
+
+  // Search as you type, after a short pause.
+  useEffect(() => {
+    if (!q) { setResults([]); return undefined; }
+    const t = setTimeout(() => { searchPeople(q).then(setResults); }, 250);
+    return () => clearTimeout(t);
+  }, [q, searchPeople]);
+
+  // People you follow (and you) first, then everyone else, newest first within each group.
   const feed = useMemo(() => {
     const followed = new Set([...state.following, 'me']);
     return [...posts].sort((a, b) => (followed.has(b.authorId) - followed.has(a.authorId)) || (b.createdAt - a.createdAt));
@@ -28,9 +37,9 @@ export function Home() {
             <LogoMark size={40} />
             <div style={{ display: 'flex', gap: 4 }}>
               <Link to="/post/new" className="icon-btn" aria-label="Create post"><Plus size={26} /></Link>
-              <Link to="/notifications" className="icon-btn" aria-label="Notifications" style={{ position: 'relative' }}>
+              <Link to="/notifications" className="icon-btn" aria-label={unread ? 'Notifications (new)' : 'Notifications'} style={{ position: 'relative' }}>
                 <Bell size={24} />
-                <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: 'var(--orange)' }} />
+                {unread && <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: 'var(--orange)' }} />}
               </Link>
             </div>
           </div>
@@ -53,6 +62,13 @@ export function Home() {
             </ul>
           )}
         </div>
+        {loading && feed.length === 0 && <p className="empty">Loading your feed…</p>}
+        {!loading && feed.length === 0 && (
+          <div className="empty">
+            Nothing here yet. Share the first post, or search for people to follow.
+            <div style={{ marginTop: 12 }}><Link to="/post/new" className="btn btn-primary btn-sm">Create a post</Link></div>
+          </div>
+        )}
         {feed.map((post) => <PostCard key={post.id} post={post} />)}
       </main>
       <BottomNav />
@@ -61,17 +77,23 @@ export function Home() {
 }
 
 export function Notifications() {
-  const { person } = useApp();
+  const { state, person, markNotificationsRead } = useApp();
+  useEffect(() => {
+    const t = setTimeout(markNotificationsRead, 1500);
+    return () => clearTimeout(t);
+  }, [markNotificationsRead]);
+  const items = state.notifications.filter((n) => person(n.personId));
   return (
     <>
       <main className="screen">
         <TopBar title="Notifications" />
+        {items.length === 0 && <p className="empty">No notifications yet. When people follow you, like your posts or match with you, you’ll see it here.</p>}
         <ul className="people">
-          {NOTIFICATIONS.map((n) => {
+          {items.map((n) => {
             const p = person(n.personId);
             return (
-              <li key={n.id}>
-                <Link to={`/u/${p.id}`}><Avatar person={p} size={45} /></Link>
+              <li key={n.id} style={{ opacity: n.read ? 0.8 : 1 }}>
+                <Link to={n.type === 'match' ? `/dating/chats/${p.id}` : `/u/${p.id}`}><Avatar person={p} size={45} /></Link>
                 <div className="meta">
                   <strong>{p.name}</strong>
                   <span>{n.text}</span>
@@ -87,7 +109,7 @@ export function Notifications() {
   );
 }
 
-const MAX_VIDEO_BYTES = 4 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
 
 export function CreatePost() {
   const navigate = useNavigate();
@@ -117,20 +139,25 @@ export function CreatePost() {
     e.target.value = '';
     if (!file) return;
     if (file.size > MAX_VIDEO_BYTES) {
-      toast('Videos can be up to 4 MB for now');
+      toast('Videos can be up to 10 MB');
       return;
     }
     setVideo(await fileToDataUrl(file));
     setImages([]);
   };
 
-  const canPost = text.trim() || images.length || video;
-  const publish = () => {
+  const [busy, setBusy] = useState(false);
+  const canPost = (text.trim() || images.length || video) && !busy;
+  const publish = async () => {
     if (!canPost) return;
+    setBusy(true);
     const body = text.trim();
-    if (images.length) addPost({ text: body, images });
-    else if (video) addPost({ text: body, video });
-    else addPost({ note: body });
+    let res;
+    if (images.length) res = await addPost({ text: body, images });
+    else if (video) res = await addPost({ text: body, video });
+    else res = await addPost({ note: body });
+    setBusy(false);
+    if (res.error) return;
     toast('Posted');
     navigate('/profile');
   };
@@ -139,7 +166,7 @@ export function CreatePost() {
     <main className="screen">
       <TopBar
         title="Create Post"
-        right={<button type="button" className="btn btn-primary btn-sm" disabled={!canPost} onClick={publish}>Post</button>}
+        right={<button type="button" className="btn btn-primary btn-sm" disabled={!canPost} onClick={publish}>{busy ? 'Posting…' : 'Post'}</button>}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <Avatar person={self} size={44} />

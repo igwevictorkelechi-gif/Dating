@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Briefcase, Cake, Camera, ChevronLeft, ChevronRight, Cigarette, Eye, HeartHandshake, ImagePlus, Images, Info,
@@ -81,8 +81,10 @@ function strengthItems(me) {
 
 function ProfileView({ profile, isMe }) {
   const navigate = useNavigate();
-  const { state, posts, toggleFollow, swipe, toast } = useApp();
+  const { state, posts, toggleFollow, swipe, toast, loadPostsBy, loadCounts } = useApp();
   const [tab, setTab] = useState('posts');
+
+  useEffect(() => { loadPostsBy(profile.id); loadCounts(profile.id); }, [profile.id, loadPostsBy, loadCounts]);
   const [menu, setMenu] = useState(false);
   const [viewer, setViewer] = useState(null);
 
@@ -93,12 +95,11 @@ function ProfileView({ profile, isMe }) {
   const matchCount = state.swipes.matches.filter((id) => !state.closedChats.includes(id)).length;
   const editStep = (step) => (isMe ? `/setup/${step}?edit=1&back=/profile` : null);
 
-  // Photos: your uploads, or for other people their portrait plus pictures from their posts.
+  // Photos: profile pictures, plus (for other people) pictures from their posts.
   const photos = isMe
     ? profile.photos.map((src) => ({ src }))
     : [
-      { render: <Portrait person={profile} className="fill" /> },
-      ...theirPosts.filter((p) => p.scene !== undefined).map((p) => ({ render: <Scene index={p.scene} className="fill" /> })),
+      ...(profile.photos.length ? profile.photos.map((src) => ({ src })) : [{ render: <Portrait person={profile} className="fill" /> }]),
       ...theirPosts.flatMap((p) => (p.images || []).map((src) => ({ src }))),
     ];
 
@@ -107,14 +108,14 @@ function ProfileView({ profile, isMe }) {
   const nextItem = items.find((i) => !i.done);
   const strength = items.length ? Math.round((done / items.length) * 100) : 100;
 
-  const like = () => {
-    const isMatch = swipe(profile.id, 'like');
+  const like = async () => {
+    const isMatch = await swipe(profile.id, 'like');
     if (isMatch) navigate(`/dating/match/${profile.id}`);
     else toast(`Like sent. If ${firstName(profile)} likes you back, it’s a match.`);
   };
 
-  const followers = profile.followers + (!isMe && following ? 1 : 0);
-  const cover = isMe && profile.photos[1]
+  const followers = profile.followers || 0;
+  const cover = profile.photos[1]
     ? <img src={profile.photos[1]} alt="" />
     : <Scene index={(profile.hue ?? 0) % 6} />;
 
@@ -160,7 +161,7 @@ function ProfileView({ profile, isMe }) {
             </>
           ) : (
             <>
-              <button type="button" className={`btn ${following ? 'btn-outline' : 'btn-primary'}`} onClick={() => toggleFollow(profile.id)}>
+              <button type="button" className={`btn ${following ? 'btn-outline' : 'btn-primary'}`} onClick={async () => { await toggleFollow(profile.id); loadCounts(profile.id); }}>
                 {following ? <><UserCheck size={18} /> Following</> : <><UserPlus size={18} /> Follow</>}
               </button>
               {matched ? (
@@ -288,20 +289,24 @@ export function MyProfile() {
   const me = state.me;
   const profile = {
     ...me, id: 'me', name: self.name, username: self.username, avatar: self.avatar, hue: self.hue,
-    age: ageFromDob(me.dob), followers: self.followers, following: state.following.length,
+    age: me.age ?? ageFromDob(me.dob), followers: self.followers, following: state.following.length,
   };
   return <ProfileView profile={profile} isMe />;
 }
 
 export function UserProfile() {
   const { id } = useParams();
-  const { person } = useApp();
+  const { person, loadPeople } = useApp();
+  const [tried, setTried] = useState(false);
   const p = person(id);
-  if (!p) return <main className="screen"><TopBar /><p className="empty">This profile doesn’t exist.</p></main>;
-  if (id === 'me') return <MyProfile />;
-  // Sample people don't store who they're interested in, so derive it for the About tab.
-  const interestedIn = p.orientation === 'Straight' ? (p.gender === 'Female' ? 'Men' : 'Women') : 'Both';
-  return <ProfileView key={p.id} profile={{ interestedIn, ...p, photos: [] }} />;
+  useEffect(() => {
+    if (!p) loadPeople([id]).finally(() => setTried(true));
+  }, [id, p, loadPeople]);
+  if (!p) {
+    return <main className="screen"><TopBar /><p className="empty">{tried ? 'This profile doesn’t exist or isn’t available.' : 'Loading…'}</p></main>;
+  }
+  if (p.id === 'me') return <MyProfile />;
+  return <ProfileView key={p.id} profile={p} />;
 }
 
 export function EditProfile() {
@@ -318,13 +323,17 @@ export function EditProfile() {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const valid = f.name.trim() && f.username.trim();
 
-  const save = () => {
-    if (!valid) return;
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!valid || busy) return;
+    setBusy(true);
     const [first, ...rest] = f.name.trim().split(/\s+/);
-    saveProfile({
+    const res = await saveProfile({
       firstName: first, lastName: rest.join(' '), username: f.username.trim().replace(/\s/g, ''),
       bio: f.bio.trim(), location: f.location.trim(), job: f.job.trim(), lookingFor: f.lookingFor,
     });
+    setBusy(false);
+    if (res.error) return;
     toast('Profile saved');
     navigate('/profile');
   };
@@ -334,8 +343,8 @@ export function EditProfile() {
     e.target.value = '';
     if (!file) return;
     try {
-      saveProfile({ avatar: await resizeImage(file, 600) });
-      toast('Profile photo updated');
+      const res = await saveProfile({ avatar: await resizeImage(file, 600) });
+      if (!res.error) toast('Profile photo updated');
     } catch {
       toast('That file couldn’t be opened as a picture');
     }
@@ -353,7 +362,7 @@ export function EditProfile() {
         <TopBar
           title="Edit profile"
           backTo="/profile"
-          right={<button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={!valid}>Save</button>}
+          right={<button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={!valid || busy}>{busy ? 'Saving…' : 'Save'}</button>}
         />
         <button type="button" className="pf-edit-avatar" onClick={() => setMenu(true)} aria-label="Profile photo options">
           <Avatar person={self} size={100} />

@@ -7,7 +7,7 @@ import { BottomNav, CheckRow, Confirm, TopBar } from '../components/ui.jsx';
 
 export function Settings() {
   const navigate = useNavigate();
-  const { logOut, deleteAccount } = useApp();
+  const { logOut, deleteAccount, toast } = useApp();
   const [confirm, setConfirm] = useState(null);
 
   return (
@@ -29,7 +29,7 @@ export function Settings() {
           message="You can log back in any time."
           confirmLabel="Log out"
           onCancel={() => setConfirm(null)}
-          onConfirm={() => { logOut(); navigate('/welcome', { replace: true }); }}
+          onConfirm={async () => { await logOut(); navigate('/welcome', { replace: true }); }}
         />
       )}
       {confirm === 'delete' && (
@@ -39,7 +39,12 @@ export function Settings() {
           confirmLabel="Yes"
           danger
           onCancel={() => setConfirm(null)}
-          onConfirm={() => { deleteAccount(); navigate('/welcome', { replace: true }); }}
+          onConfirm={async () => {
+            const res = await deleteAccount();
+            setConfirm(null);
+            if (res.error) { toast(res.error); return; }
+            navigate('/welcome', { replace: true });
+          }}
         />
       )}
     </>
@@ -70,18 +75,25 @@ export function Account() {
 
 export function ChangePassword() {
   const navigate = useNavigate();
-  const { toast } = useApp();
+  const { toast, changePassword } = useApp();
   const [f, setF] = useState({ old: '', next: '', confirm: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const [tried, setTried] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const longEnough = f.next.length >= 8;
   const matches = f.next === f.confirm;
   const valid = f.old && longEnough && matches;
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setTried(true);
-    if (!valid) return;
+    if (!valid || busy) return;
+    setBusy(true);
+    setError('');
+    const res = await changePassword(f.old, f.next);
+    setBusy(false);
+    if (res.error) { setError(res.error); return; }
     toast('Password changed');
     navigate('/settings/account');
   };
@@ -95,8 +107,9 @@ export function ChangePassword() {
         <input className="field" type="password" placeholder="Confirm password" autoComplete="new-password" value={f.confirm} onChange={set('confirm')} aria-label="Confirm new password" />
         {tried && !longEnough && <p className="error">Use at least 8 characters for your new password.</p>}
         {tried && longEnough && !matches && <p className="error">The new passwords don’t match.</p>}
+        {error && <p className="error">{error}</p>}
         <div className="grow" />
-        <button type="submit" className="btn btn-primary btn-block" disabled={!f.old || !f.next || !f.confirm}>Done</button>
+        <button type="submit" className="btn btn-primary btn-block" disabled={!f.old || !f.next || !f.confirm || busy}>{busy ? 'Saving…' : 'Done'}</button>
       </form>
       <BottomNav />
     </>

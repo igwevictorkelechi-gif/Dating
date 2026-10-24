@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Check, ChevronDown, ChevronLeft, EllipsisVertical, Heart, ImagePlus, MapPin, Pencil, SendHorizontal, SlidersHorizontal, Star, X,
 } from 'lucide-react';
 import { ageFromDob, firstName, resizeImage, timeAgo, useApp } from '../store.jsx';
-import { AUTO_REPLIES, INTERESTED_IN, PEOPLE } from '../data/seed.js';
+import { INTERESTED_IN } from '../data/seed.js';
 import { Avatar, CheckRow, ChipGroup, DatingNav, Sheet } from '../components/ui.jsx';
 import { LogoMark } from '../components/Logo.jsx';
 import { Portrait } from '../components/Art.jsx';
@@ -89,36 +89,35 @@ export function DatingDetails({ person, audio }) {
   );
 }
 
-const GENDER_FOR = { Men: ['Male'], Women: ['Female'], Both: ['Male', 'Female', 'Other'] };
-
 export function Discover() {
   const navigate = useNavigate();
-  const { state, swipe, resetDeck, posts, toast } = useApp();
-  const { filters, swipes } = state;
+  const { state, swipe, resetDeck, posts, toast, discover, loadPostsBy } = useApp();
+  const { filters } = state;
+  const [deck, setDeck] = useState(null);
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
   const [leaving, setLeaving] = useState(null);
   const start = useRef(null);
   const busy = useRef(false);
 
-  const deck = useMemo(() => PEOPLE.filter((p) => (
-    !swipes.seen.includes(p.id)
-    && GENDER_FOR[filters.seeking].includes(p.gender)
-    && p.age >= filters.minAge && p.age <= filters.maxAge
-  )), [swipes.seen, filters]);
-  const top = deck[0];
-  const below = deck[1];
+  const refill = useCallback(() => { discover().then(setDeck); }, [discover]);
+  useEffect(() => { refill(); }, [refill, filters]);
+
+  const top = deck?.[0];
+  const below = deck?.[1];
+  useEffect(() => { if (top) loadPostsBy(top.id); }, [top, loadPostsBy]);
 
   const decide = (kind) => {
     if (!top || busy.current) return;
     busy.current = true;
     setLeaving(kind === 'pass' ? 'left' : 'right');
-    setTimeout(() => {
-      const matched = swipe(top.id, kind);
+    const swiped = swipe(top.id, kind);
+    setTimeout(async () => {
+      setDeck((d) => d.slice(1));
       setLeaving(null);
       setDrag({ x: 0, y: 0, active: false });
       busy.current = false;
       if (kind === 'super') toast(`You super liked ${firstName(top)} ⭐`);
-      if (matched) navigate(`/dating/match/${top.id}`);
+      if (await swiped) navigate(`/dating/match/${top.id}`);
     }, 260);
   };
 
@@ -167,17 +166,21 @@ export function Discover() {
         <div style={{ position: 'relative', margin: '0 30px', aspectRatio: '332 / 496', maxHeight: '62vh' }}>
           {top ? (
             <>
-              {below && <PhotoCard person={below} style={{ transform: 'scale(0.96)', opacity: 0.7 }} />}
-              <PhotoCard key={top.id} person={top} style={topStyle} handlers={handlers} stamp={stamp} />
+              {below && <PhotoCard person={below} photo={below.photos[0]} style={{ transform: 'scale(0.96)', opacity: 0.7 }} />}
+              <PhotoCard key={top.id} person={top} photo={top.photos[0]} style={topStyle} handlers={handlers} stamp={stamp} />
             </>
           ) : (
             <div style={{ position: 'absolute', inset: 0, border: '2px dashed var(--line)', borderRadius: 10, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
               <div>
-                <p style={{ fontWeight: 600, fontSize: 18, margin: '0 0 8px' }}>You’ve seen everyone for now</p>
-                <p className="hint" style={{ margin: '0 0 16px' }}>Widen your filters or start over to see people again.</p>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {deck === null ? <p className="hint">Finding people for you…</p> : (
+                  <>
+                    <p style={{ fontWeight: 600, fontSize: 18, margin: '0 0 8px' }}>No one new right now</p>
+                    <p className="hint" style={{ margin: '0 0 16px' }}>Widen your filters, start over to see people you passed on, or check back soon as more people join.</p>
+                  </>
+                )}
+                <div hidden={deck === null} style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                   <Link to="/dating/filters" className="btn btn-outline btn-sm">Filters</Link>
-                  <button type="button" className="btn btn-primary btn-sm" onClick={resetDeck}>Start over</button>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={async () => { await resetDeck(); refill(); }}>Start over</button>
                 </div>
               </div>
             </div>
@@ -244,8 +247,9 @@ export function Filters() {
 export function Match() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { person, self, state } = useApp();
+  const { person, self, state, loadPeople } = useApp();
   const them = person(id);
+  useEffect(() => { if (!them) loadPeople([id]); }, [them, id, loadPeople]);
   if (!them) return null;
   const myPhoto = state.me.photos[0];
   const card = { position: 'absolute', width: '60%', aspectRatio: '234 / 486', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow)' };
@@ -259,7 +263,7 @@ export function Match() {
             {myPhoto ? <img src={myPhoto} alt="You" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Portrait person={self} className="fill" />}
           </div>
           <div style={{ ...card, right: '4%', top: 0, transform: 'rotate(6deg)', height: '96%', width: 'auto' }}>
-            <Portrait person={them} className="fill" />
+            {them.photos[0] ? <img src={them.photos[0]} alt={them.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Portrait person={them} className="fill" />}
           </div>
           <div style={{ position: 'absolute', left: '50%', bottom: -20, transform: 'translateX(-50%)', background: 'var(--surface)', borderRadius: '50%', padding: 14, boxShadow: 'var(--shadow)' }}>
             <LogoMark size={90} />
@@ -279,10 +283,11 @@ export function Match() {
 }
 
 export function Chats() {
-  const { state, person } = useApp();
+  const { state, person, loadAllChats } = useApp();
+  useEffect(() => { loadAllChats(); }, [loadAllChats, state.swipes.matches.length]);
   const [showOlder, setShowOlder] = useState(true);
   const DAY = 24 * 3600 * 1000;
-  const matches = state.swipes.matches.filter((id) => !state.closedChats.includes(id));
+  const matches = state.swipes.matches.filter((id) => !state.closedChats.includes(id) && person(id));
   const withMessages = matches.filter((id) => state.chats[id]?.length)
     .map((id) => ({ p: person(id), last: state.chats[id][state.chats[id].length - 1] }))
     .sort((a, b) => b.last.at - a.last.at);
@@ -343,38 +348,39 @@ export function Chats() {
 export function Chat() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { state, person, sendMessage, closeChat, toast } = useApp();
+  const { state, person, sendMessage, closeChat, toast, loadChat, loadPeople } = useApp();
   const them = person(id);
+  const matchId = state.matchIds[id];
   const messages = state.chats[id] || [];
   const [text, setText] = useState('');
   const [menu, setMenu] = useState(false);
-  const [typing, setTyping] = useState(false);
+  const [sending, setSending] = useState(false);
   const end = useRef(null);
   const fileInput = useRef(null);
-  const replyTimer = useRef(null);
 
-  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length, typing]);
-  useEffect(() => () => clearTimeout(replyTimer.current), []);
+  useEffect(() => { if (!them) loadPeople([id]); }, [them, id, loadPeople]);
+  useEffect(() => { if (matchId) loadChat(id); }, [matchId, id, loadChat]);
+  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
   if (!them) return null;
+  if (!matchId) {
+    return (
+      <main className="screen">
+        <div className="topbar"><button type="button" className="icon-btn" aria-label="Back to chats" onClick={() => navigate('/dating/chats')}><ChevronLeft size={30} /></button></div>
+        <p className="empty">This chat isn’t available. You can only message people you’ve matched with.</p>
+      </main>
+    );
+  }
 
-  // Demo only: the other person replies with a canned message.
-  const queueReply = () => {
-    clearTimeout(replyTimer.current);
-    setTyping(true);
-    replyTimer.current = setTimeout(() => {
-      setTyping(false);
-      sendMessage(id, AUTO_REPLIES[Math.floor(Math.random() * AUTO_REPLIES.length)], 'them');
-    }, 1600);
-  };
-
-  const send = (e) => {
+  const send = async (e) => {
     e.preventDefault();
     const body = text.trim();
-    if (!body) return;
-    sendMessage(id, body);
+    if (!body || sending) return;
+    setSending(true);
     setText('');
-    queueReply();
+    const err = await sendMessage(id, body);
+    if (err) setText(body);
+    setSending(false);
   };
 
   const sendPicture = async (e) => {
@@ -382,10 +388,12 @@ export function Chat() {
     e.target.value = '';
     if (!file) return;
     try {
-      sendMessage(id, '', 'me', await resizeImage(file, 700));
-      queueReply();
+      setSending(true);
+      await sendMessage(id, '', 'me', await resizeImage(file, 1000));
     } catch {
       toast('That file couldn’t be opened as a picture');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -406,7 +414,7 @@ export function Chat() {
         <Avatar person={them} size={56} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600 }}>{them.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--muted)' }}>{typing ? 'typing…' : `Last active ${last ? timeAgo(last.at) : '1h'} ago`}</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>{last ? `Last message ${timeAgo(last.at)} ago` : 'New match'}</div>
         </div>
         <button type="button" className="icon-btn" aria-label="Chat options" onClick={() => setMenu(true)} style={{ color: 'var(--ink)' }}><EllipsisVertical size={24} /></button>
       </header>
@@ -419,7 +427,6 @@ export function Chat() {
             {m.text}
           </div>
         ))}
-        {typing && <div style={{ ...bubble({ from: 'them' }), color: 'var(--muted)' }}>•••</div>}
         <div ref={end} />
       </main>
 
@@ -432,15 +439,15 @@ export function Chat() {
           aria-label="Message"
           style={{ flex: 1, minWidth: 0, height: 45, borderRadius: 10, border: '1px solid var(--line)', padding: '0 12px', background: 'var(--surface)' }}
         />
-        <button type="submit" className="icon-btn" aria-label="Send" disabled={!text.trim()}><SendHorizontal size={26} /></button>
+        <button type="submit" className="icon-btn" aria-label="Send" disabled={!text.trim() || sending}><SendHorizontal size={26} /></button>
         <input ref={fileInput} type="file" accept="image/*" hidden onChange={sendPicture} />
       </form>
 
       {menu && (
         <Sheet onClose={() => setMenu(false)}>
           <div className="sheet-group">
-            <button type="button" onClick={() => { closeChat(id); toast('Chat closed'); navigate('/dating/chats'); }}>Close the chat</button>
-            <button type="button" className="danger" onClick={() => { closeChat(id); toast('Reported. Our team will review it.'); navigate('/dating/chats'); }}>Report and close the chat</button>
+            <button type="button" onClick={async () => { await closeChat(id); toast('Chat closed'); navigate('/dating/chats'); }}>Close the chat</button>
+            <button type="button" className="danger" onClick={async () => { await closeChat(id, { report: true }); toast('Reported. Our team will review it.'); navigate('/dating/chats'); }}>Report and close the chat</button>
           </div>
           <div className="sheet-group"><button type="button" onClick={() => setMenu(false)}>Cancel</button></div>
         </Sheet>
@@ -450,7 +457,8 @@ export function Chat() {
 }
 
 export function Liked() {
-  const { state, person } = useApp();
+  const { state, person, loadPeople } = useApp();
+  useEffect(() => { loadPeople(state.swipes.liked); }, [state.swipes.liked, loadPeople]);
   const liked = [...state.swipes.liked].reverse().map(person).filter(Boolean);
   return (
     <>
@@ -465,7 +473,7 @@ export function Liked() {
               const superLiked = state.swipes.superliked.includes(p.id);
               return (
                 <Link key={p.id} to={matched ? `/dating/chats/${p.id}` : `/u/${p.id}`} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', aspectRatio: '3 / 4', textDecoration: 'none' }}>
-                  <Portrait person={p} className="fill" />
+                  {p.photos[0] ? <img src={p.photos[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Portrait person={p} className="fill" />}
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent 50%)' }} />
                   {superLiked && <Star size={20} fill="#ffe55e" color="#f5c518" style={{ position: 'absolute', top: 8, right: 8 }} />}
                   <div style={{ position: 'absolute', left: 10, right: 10, bottom: 10, color: '#fff' }}>

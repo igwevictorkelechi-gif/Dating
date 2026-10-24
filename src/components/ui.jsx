@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Check, ChevronLeft, Heart, House, MessagesSquare, Settings, UserRound, Users,
@@ -152,15 +153,22 @@ export function Toast() {
 }
 
 // Shared layout for the numbered sign-up steps: content on top, Next pinned to the bottom.
+// `onNext` may be async; the button shows "Saving…" until it finishes.
 export function StepScreen({ title, children, canNext = true, onNext, nextLabel = 'Next', footer }) {
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await onNext(); } finally { setBusy(false); }
+  };
   return (
     <main className="screen">
       <TopBar title={title} />
       {children}
       <div className="grow" />
       <div style={{ display: 'grid', gap: 8, marginTop: 24 }}>
-        <button type="button" className="btn btn-primary btn-block" disabled={!canNext} onClick={onNext}>
-          {nextLabel}
+        <button type="button" className="btn btn-primary btn-block" disabled={!canNext || busy} onClick={go}>
+          {busy ? 'Saving…' : nextLabel}
         </button>
         {footer}
       </div>

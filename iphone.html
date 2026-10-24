@@ -130,7 +130,6 @@
         </div>
         <div class="caption">
           <span>alignment · iPhone 15 Pro</span>
-          <button type="button" id="reset">Reset demo</button>
         </div>
       </div>
     </div>
@@ -155,11 +154,6 @@
         tick();
         setInterval(tick, 10000);
 
-        document.getElementById('reset').addEventListener('click', function () {
-          try { localStorage.removeItem('alignment:v1'); } catch (e) { /* storage blocked */ }
-          location.hash = '#/';
-          location.reload();
-        });
       })();
     </script>
     <script type="module" src="/src/main.jsx"></script>
