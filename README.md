@@ -18,6 +18,8 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 
 **Backend:** Supabase (accounts, database, file storage, live chat). See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) for the dashboard steps to finish before launch.
 
+**Hosting on Vercel:** the repo is linked to a Vercel project; every push builds and deploys automatically. `vercel.json` sets the build and the caching/security headers.
+
 **Hosting on WhoGoHost / Go54 (cPanel):** see [DEPLOY-WHOGOHOST.md](DEPLOY-WHOGOHOST.md). The build includes an `.htaccess` with compression, caching and security headers.
 
 ## What's built
