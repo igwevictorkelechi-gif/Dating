@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store.jsx';
 import { Logo } from '../components/Logo.jsx';
 import { Illustration } from '../components/Art.jsx';
 import { TopBar } from '../components/ui.jsx';
+import { InstallButton } from '../components/Install.jsx';
 
 export function Splash() {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export function Welcome() {
           <>
             <button type="button" className="btn btn-primary" style={{ minWidth: 150 }} onClick={() => navigate('/signup')}>Create Account</button>
             <button type="button" className="btn btn-primary" style={{ minWidth: 150 }} onClick={() => navigate('/login')}>Login</button>
+            <InstallButton />
           </>
         ) : (
           <button type="button" className="btn btn-primary" style={{ minWidth: 120 }} onClick={() => setI(i + 1)}>Next</button>
@@ -161,7 +163,7 @@ export function Login() {
     const res = await logIn(email.trim().toLowerCase(), password);
     setBusy(false);
     if (res.error) setError(res.error);
-    else if (res.needsCode) navigate('/otp');
+    else if (res.needsCode) navigate('/otp', { state: { notice: res.notice || 'Your email isn’t confirmed yet. We sent you a new code.' } });
   };
 
   return (
@@ -181,11 +183,13 @@ const CODE_LENGTH = 6;
 
 export function Otp() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state, verifyCode, resendCode } = useApp();
   useAfterSignIn();
   const [digits, setDigits] = useState(Array(CODE_LENGTH).fill(''));
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(location.state?.notice || '');
   const refs = useRef([]);
   const complete = digits.every((d) => /^[0-9]$/.test(d));
 
@@ -221,6 +225,15 @@ export function Otp() {
     if (res.error) setError(res.error);
   };
 
+  const resend = async () => {
+    if (sending) return;
+    setSending(true);
+    setError('');
+    const res = await resendCode();
+    setSending(false);
+    if (res.error) setError(res.error);
+  };
+
   return (
     <form className="screen" onSubmit={submit} noValidate>
       <TopBar title="Enter OTP" />
@@ -245,7 +258,7 @@ export function Otp() {
         We emailed a {CODE_LENGTH}-digit code to <strong>{state.pendingEmail || 'you'}</strong>. It can take a minute to arrive; check your spam folder too.
       </p>
       {error && <p className="error">{error}</p>}
-      <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', paddingLeft: 0 }} onClick={resendCode}>Send a new code</button>
+      <button type="button" className="link-btn" style={{ alignSelf: 'flex-start', paddingLeft: 0 }} onClick={resend} disabled={sending}>{sending ? 'Sending…' : 'Send a new code'}</button>
       <div className="grow" style={{ maxHeight: 160 }} />
       <button type="submit" className="btn btn-primary btn-block" disabled={!complete || busy}>{busy ? 'Checking…' : 'Next'}</button>
     </form>

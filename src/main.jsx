@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { AppProvider } from './store.jsx';
 import App from './App.jsx';
+import { registerServiceWorker } from './pwa.js';
 import './styles.css';
+
+registerServiceWorker();
 
 // HashRouter keeps routing working on static hosts (GitHub Pages, previews) with no server config.
 createRoot(document.getElementById('root')).render(

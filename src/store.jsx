@@ -22,11 +22,23 @@ function loadPrefs() {
   }
 }
 
+const PENDING_KEY = 'alignment:pendingEmail'; // the email waiting for its code survives a page reload
+
+function loadPending() {
+  try { return sessionStorage.getItem(PENDING_KEY) || ''; } catch { return ''; }
+}
+
+function savePending(email) {
+  try {
+    if (email) sessionStorage.setItem(PENDING_KEY, email); else sessionStorage.removeItem(PENDING_KEY);
+  } catch { /* ignore */ }
+}
+
 const INITIAL = {
   authReady: false,
   myId: null,
   account: null, // { email, username }
-  pendingEmail: '', // email waiting for its sign-up code
+  pendingEmail: loadPending(), // email waiting for its sign-up code
   verified: false,
   onboarded: false,
   me: EMPTY_PROFILE,
@@ -82,7 +94,15 @@ function friendlyError(error) {
   if (/duplicate key.*username/i.test(msg)) return 'That username is taken. Try another one.';
   if (/username_check/i.test(msg)) return 'Usernames use 3–30 letters, numbers, dots or underscores.';
   if (/18 or older/i.test(msg)) return 'You must be 18 or older to use alignment.';
-  if (/Failed to fetch|NetworkError/i.test(msg)) return 'Can’t reach the server. Check your connection and try again.';
+  if (/Failed to fetch|NetworkError|Load failed|fetch failed/i.test(msg) || error?.status === 0 || error?.status >= 500) {
+    return 'Can’t reach alignment right now. Check your connection, or try again in a few minutes.';
+  }
+  if (/rate limit|too many|only request this after/i.test(msg) || error?.status === 429) {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+  if (/password should be|weak password/i.test(msg)) return 'Choose a stronger password: at least 8 characters.';
+  if (/signups not allowed|signup is disabled/i.test(msg)) return 'New sign-ups are switched off right now.';
+  if (/error sending/i.test(msg)) return 'We couldn’t send the email. Please try again in a few minutes.';
   return msg || 'Something went wrong. Please try again.';
 }
 
@@ -184,9 +204,11 @@ export function AppProvider({ children }) {
       supabase.rpc('profile_counts', { uid: myId }),
     ]);
     const me = profile ? rowToMe(profile, priv?.dob) : EMPTY_PROFILE;
+    savePending('');
     update(() => ({
       authReady: true,
       myId,
+      pendingEmail: '',
       verified: true,
       account: { email: session.user.email, username: me.username },
       onboarded: !!profile?.onboarded,
@@ -289,35 +311,45 @@ export function AppProvider({ children }) {
 
       // ----- auth -----
       signUp: async (email, password) => {
+        savePending(email);
         update(() => ({ pendingEmail: email }));
         const redirect = `${window.location.origin}${window.location.pathname}`;
         const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });
-        if (error) return { error: friendlyError(error) };
+        if (error) {
+          if (/already registered|already exists/i.test(error.message)) return { error: 'An account with this email already exists. Log in instead.' };
+          return { error: friendlyError(error) };
+        }
         if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
           return { error: 'An account with this email already exists. Log in instead.' };
         }
         return { needsCode: !data.session };
       },
       logIn: async (email, password) => {
+        savePending(email);
         update(() => ({ pendingEmail: email }));
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (!error) return {};
         if (/not confirmed/i.test(error.message)) {
-          await supabase.auth.resend({ type: 'signup', email });
-          return { needsCode: true };
+          const { error: sendError } = await supabase.auth.resend({ type: 'signup', email });
+          return { needsCode: true, notice: sendError ? friendlyError(sendError) : '' };
         }
-        if (/invalid login/i.test(error.message)) return { error: 'That email and password don’t match.' };
+        if (/invalid login|invalid credentials/i.test(error.message)) return { error: 'That email and password don’t match.' };
         return { error: friendlyError(error) };
       },
       verifyCode: async (token) => {
         const email = stateRef.current.pendingEmail;
+        if (!email) return { error: 'Start again from Create account or Login so we know which email to check.' };
         let { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
-        if (error) ({ error } = await supabase.auth.verifyOtp({ email, token, type: 'email' }));
-        return error ? { error: /expired|invalid/i.test(error.message) ? 'That code is wrong or has expired. Check the email or send a new code.' : friendlyError(error) } : {};
+        if (error && /expired|invalid|not found/i.test(error.message)) ({ error } = await supabase.auth.verifyOtp({ email, token, type: 'email' }));
+        return error ? { error: /expired|invalid|not found/i.test(error.message) ? 'That code is wrong or has expired. Check the email or send a new code.' : friendlyError(error) } : {};
       },
       resendCode: async () => {
-        const { error } = await supabase.auth.resend({ type: 'signup', email: stateRef.current.pendingEmail });
-        if (error) fail(error); else toast('We sent you a new code');
+        const email = stateRef.current.pendingEmail;
+        if (!email) return { error: 'Start again from Create account or Login.' };
+        const { error } = await supabase.auth.resend({ type: 'signup', email });
+        if (error) return { error: friendlyError(error) };
+        toast('We sent you a new code');
+        return {};
       },
       logOut: async () => { await supabase.auth.signOut(); },
       changePassword: async (oldPassword, newPassword) => {
