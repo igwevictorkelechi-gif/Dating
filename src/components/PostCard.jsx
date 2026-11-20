@@ -5,6 +5,26 @@ import { timeAgo, useApp } from '../store.jsx';
 import { Avatar } from './ui.jsx';
 import { Scene } from './Art.jsx';
 
+// Pictures at their real shape. Several pictures swipe sideways, with dots underneath.
+function PostImages({ images }) {
+  const [current, setCurrent] = useState(0);
+  if (images.length === 1) return <div className="post-media"><img src={images[0]} alt="" loading="lazy" /></div>;
+  const onScroll = (e) => {
+    const el = e.currentTarget;
+    setCurrent(Math.round(el.scrollLeft / el.clientWidth));
+  };
+  return (
+    <div className="post-media">
+      <div className="post-carousel" onScroll={onScroll}>
+        {images.map((src, i) => <img key={i} src={src} alt={`Picture ${i + 1} of ${images.length}`} loading="lazy" />)}
+      </div>
+      <div className="post-dots" aria-hidden="true">
+        {images.map((_, i) => <span key={i} className={i === current ? 'on' : ''} />)}
+      </div>
+    </div>
+  );
+}
+
 // Shows #topics as buttons that open that topic in the feed.
 function WithTags({ text, onTopic }) {
   const parts = text.split(/(#[A-Za-z0-9_]{2,40})/g);
@@ -68,11 +88,7 @@ export default function PostCard({ post, onTopic }) {
           {post.text && <p className="post-text"><WithTags text={post.text} onTopic={openTopic} /></p>}
           {post.note && <div className="post-note"><span><WithTags text={post.note} onTopic={openTopic} /></span></div>}
           {post.scene !== undefined && <div className="post-media"><Scene index={post.scene} /></div>}
-          {images.length > 0 && (
-            <div className={`post-media ${images.length > 1 ? 'two' : ''}`}>
-              {images.map((src, i) => <img key={i} src={src} alt="" />)}
-            </div>
-          )}
+          {images.length > 0 && <PostImages images={images} />}
           {post.video && (
             <div className="post-media">
               <video src={post.video} controls playsInline preload="metadata" />

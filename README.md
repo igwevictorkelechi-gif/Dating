@@ -28,10 +28,10 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 
 | Area | Screens |
 | --- | --- |
-| Onboarding | Splash, 3 intro slides, create account, login, OTP |
-| Dating profile setup | Name/gender/birthday/interested in, orientation, spiritual & political views, causes, smoking & drinking, hobbies, conspiracy-theory voice recording, photo upload (at least 2), follow 5 creators |
-| Profile | Photo, name & age, location, work, bio and what you're looking for; posts / followers / following / matches; profile-strength meter with the next thing to add; Posts, Photos (grid + viewer) and About tabs (basics, beliefs, causes, lifestyle, hobbies, voice note); Edit profile & Preview on yours, Follow and Like/Message on other people's |
-| Social | Home feed with search, notifications, create post (notes, images, video), likes & comments |
+| Onboarding | Splash, one welcome page with a photo collage (photos set in `src/data/onboarding.js`), create account, login, OTP, then name/username/birthday and follow five people |
+| Dating profile setup | Required the first time you open Dating: gender & who you're into, orientation, spiritual & political views, causes, smoking & drinking, hobbies, conspiracy-theory voice recording, photo upload (at least 2) |
+| Profile | Photo, name & age, location, work, bio and what you're looking for; posts / followers / following; profile-strength meter with the next thing to add; Posts, Photos (grid + viewer) and About tabs (basics, beliefs, causes, lifestyle, hobbies, voice note); Edit profile & Preview on yours, Follow and Like/Message on other people's |
+| Social | Home feed with Trending and Latest tabs, trending #topics, keyword flagging, write-a-post box, search, notifications, create post (notes, images with framing/crop, video), likes & comments |
 | Dating | Swipe deck (drag, buttons or ← → ↑ keys), profile details under the card, super like, filters (who & age range), "It's aligning!" match screen, chats list, chat with pictures, close/report chat, people you liked, your dating profile preview with edit links |
 | Settings | Account, change password, light/dark appearance, help & support, log out, delete account |
 

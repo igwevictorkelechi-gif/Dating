@@ -5,9 +5,55 @@ import { fileToDataUrl, resizeImage, timeAgo, useApp } from '../store.jsx';
 import { Avatar, BottomNav, TopBar } from '../components/ui.jsx';
 import { LogoMark } from '../components/Logo.jsx';
 import PostCard from '../components/PostCard.jsx';
-import { localTopics, matchesTopic, trendScore } from '../lib/trending.js';
+import Cropper from '../components/Cropper.jsx';
+import { extractTags, localTopics, matchesTopic, trendScore } from '../lib/trending.js';
 
 const FEED_TABS = [['trending', 'Trending'], ['latest', 'Latest']];
+const QUICK_MAX = 500;
+
+// Write a text post straight from the feed. #topics in it can trend.
+function QuickPost({ onPosted }) {
+  const { self, addPost, toast } = useApp();
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const body = text.trim();
+  const tags = extractTags(body);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!body || busy) return;
+    setBusy(true);
+    const res = await addPost({ text: body });
+    setBusy(false);
+    if (res.error) return;
+    setText('');
+    toast('Posted');
+    onPosted?.();
+  };
+
+  return (
+    <form className="quick-post" onSubmit={submit}>
+      <Avatar person={self} size={40} />
+      <div className="quick-post-body">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, QUICK_MAX))}
+          placeholder="What’s on your mind? Add #topics to trend"
+          rows={text ? 3 : 1}
+          aria-label="Write a post"
+        />
+        {body && (
+          <div className="quick-post-foot">
+            <span className="hint" style={{ margin: 0 }}>
+              {tags.length ? `Topics: ${tags.map((t) => `#${t}`).join(' ')}` : 'Tip: add a #topic'} · {QUICK_MAX - text.length} left
+            </span>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Posting…' : 'Post'}</button>
+          </div>
+        )}
+      </div>
+    </form>
+  );
+}
 
 export function Home() {
   const { posts, state, loadFeed, loadTrending, loadTopic, loadTopics, searchPeople } = useApp();
@@ -112,6 +158,7 @@ export function Home() {
             </div>
           )}
         </div>
+        <QuickPost onPosted={() => setView({ tab: 'latest', topic: '' })} />
         {loading && feed.length === 0 && <p className="empty">Loading your feed…</p>}
         {!loading && feed.length === 0 && (
           <div className="empty">
@@ -168,6 +215,7 @@ export function CreatePost() {
   const [text, setText] = useState('');
   const [images, setImages] = useState([]);
   const [video, setVideo] = useState(null);
+  const [framing, setFraming] = useState(null); // pictures waiting to be framed
   const imageInput = useRef(null);
   const videoInput = useRef(null);
   const type = params.get('type');
@@ -176,9 +224,9 @@ export function CreatePost() {
     const files = [...e.target.files].slice(0, 4 - images.length);
     e.target.value = '';
     try {
-      const urls = await Promise.all(files.map((f) => resizeImage(f, 1080)));
-      setImages((v) => [...v, ...urls].slice(0, 4));
-      setVideo(null);
+      // Keep enough detail for zooming in; the framed result is saved at up to 1350px.
+      const urls = await Promise.all(files.map((f) => resizeImage(f, 2400)));
+      if (urls.length) setFraming(urls);
     } catch {
       toast('That file couldn’t be opened as a picture');
     }
@@ -236,7 +284,7 @@ export function CreatePost() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
           {images.map((src, i) => (
             <div key={i} style={{ position: 'relative' }}>
-              <img src={src} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 10 }} />
+              <img src={src} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', background: 'var(--surface-2)', borderRadius: 10 }} />
               <button type="button" aria-label="Remove picture" onClick={() => setImages(images.filter((_, n) => n !== i))}
                 style={{ position: 'absolute', top: 6, right: 6, border: 0, borderRadius: '50%', width: 26, height: 26, background: 'rgba(0,0,0,0.55)', color: '#fff', display: 'grid', placeItems: 'center', padding: 0 }}>
                 <X size={16} />
@@ -265,6 +313,13 @@ export function CreatePost() {
       {/* Open the right picker straight away when coming from the Images / Videos menu */}
       {type === 'images' && <AutoClick target={imageInput} />}
       {type === 'videos' && <AutoClick target={videoInput} />}
+      {framing && (
+        <Cropper
+          images={framing}
+          onCancel={() => setFraming(null)}
+          onDone={(framed) => { setImages((v) => [...v, ...framed].slice(0, 4)); setVideo(null); setFraming(null); }}
+        />
+      )}
     </main>
   );
 }

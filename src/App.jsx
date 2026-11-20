@@ -3,12 +3,12 @@ import { useApp } from './store.jsx';
 import { Toast } from './components/ui.jsx';
 import { Login, Otp, Signup, Splash, Welcome } from './screens/Auth.jsx';
 import {
-  SetupAudio, SetupBeliefs, SetupCreators, SetupHobbies, SetupOrientation, SetupPhotos, SetupProfile,
+  SetupAudio, SetupBeliefs, SetupCreators, SetupDatingBasics, SetupHobbies, SetupOrientation, SetupPhotos, SetupProfile,
 } from './screens/Setup.jsx';
 import { CreatePost, Home, Notifications } from './screens/Social.jsx';
 import { EditProfile, MyProfile, UserProfile } from './screens/Profile.jsx';
 import {
-  Chat, Chats, Discover, Filters, Liked, Match, MyDatingProfile,
+  Chat, Chats, DatingStart, Discover, Filters, Liked, Match, MyDatingProfile,
 } from './screens/Dating.jsx';
 import {
   Account, Appearance, ChangePassword, Help, Settings,
@@ -16,6 +16,13 @@ import {
 
 function Loading() {
   return <main className="screen center"><p className="hint">Loading…</p></main>;
+}
+
+// ...and has a dating profile (otherwise: the "create your dating profile" screen)
+function RequireDatingProfile() {
+  const { datingReady } = useApp();
+  if (!datingReady) return <Navigate to="/dating/start" replace />;
+  return <Outlet />;
 }
 
 // Signed in (Supabase session)
@@ -45,6 +52,7 @@ export default function App() {
 
         <Route element={<RequireAuth />}>
           <Route path="/setup/profile" element={<SetupProfile />} />
+          <Route path="/setup/dating" element={<SetupDatingBasics />} />
           <Route path="/setup/orientation" element={<SetupOrientation />} />
           <Route path="/setup/beliefs" element={<SetupBeliefs />} />
           <Route path="/setup/hobbies" element={<SetupHobbies />} />
@@ -60,13 +68,16 @@ export default function App() {
             <Route path="/profile/edit" element={<EditProfile />} />
             <Route path="/u/:id" element={<UserProfile />} />
 
-            <Route path="/dating" element={<Discover />} />
-            <Route path="/dating/filters" element={<Filters />} />
-            <Route path="/dating/match/:id" element={<Match />} />
-            <Route path="/dating/chats" element={<Chats />} />
-            <Route path="/dating/chats/:id" element={<Chat />} />
-            <Route path="/dating/liked" element={<Liked />} />
-            <Route path="/dating/me" element={<MyDatingProfile />} />
+            <Route path="/dating/start" element={<DatingStart />} />
+            <Route element={<RequireDatingProfile />}>
+              <Route path="/dating" element={<Discover />} />
+              <Route path="/dating/filters" element={<Filters />} />
+              <Route path="/dating/match/:id" element={<Match />} />
+              <Route path="/dating/chats" element={<Chats />} />
+              <Route path="/dating/chats/:id" element={<Chat />} />
+              <Route path="/dating/liked" element={<Liked />} />
+              <Route path="/dating/me" element={<MyDatingProfile />} />
+            </Route>
 
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/account" element={<Account />} />

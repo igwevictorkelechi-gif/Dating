@@ -646,7 +646,10 @@ export function AppProvider({ children }) {
       .filter(Boolean)
       .sort((a, b) => b.createdAt - a.createdAt);
 
-    return { ...actions, state, toastMsg, self, person, posts };
+    // A dating profile is ready once it has the basics and at least two photos.
+    const datingReady = !!(me.gender && me.interestedIn && me.orientation && me.photos.length >= 2);
+
+    return { ...actions, state, toastMsg, self, person, posts, datingReady };
   }, [actions, state, toastMsg]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

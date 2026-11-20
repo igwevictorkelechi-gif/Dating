@@ -7,24 +7,34 @@ import {
 } from '../data/seed.js';
 import { Avatar, CheckRow, ChipGroup, StepScreen } from '../components/ui.jsx';
 
-const ORDER = ['profile', 'orientation', 'beliefs', 'hobbies', 'audio', 'photos', 'creators'];
+// Two short flows:
+// - after sign-up: your profile (name, username, birthday) → follow people → the app
+// - the first time you open Dating: gender & who you're into → orientation → beliefs → hobbies → voice note → photos → Discover
+const NEXT = {
+  profile: '/setup/creators',
+  dating: '/setup/orientation',
+  orientation: '/setup/beliefs',
+  beliefs: '/setup/hobbies',
+  hobbies: '/setup/audio',
+  audio: '/setup/photos',
+  photos: '/dating',
+};
 
-// Moves to the next step, or back to the dating profile when editing a single step.
+// Moves to the next step, or back where you came from when editing a single step.
 function useStepNav(step) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const editing = params.get('edit') === '1';
   return () => {
     if (editing) return navigate(params.get('back') || '/dating/me');
-    const next = ORDER[ORDER.indexOf(step) + 1];
-    navigate(`/setup/${next}`);
+    navigate(NEXT[step], step === 'photos' ? { replace: true } : undefined);
   };
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function SetupProfile() {
-  const { state, saveProfile, setFilters } = useApp();
+  const { state, saveProfile } = useApp();
   const next = useStepNav('profile');
   const [f, setF] = useState(() => ({
     ...state.me,
@@ -33,13 +43,13 @@ export function SetupProfile() {
   const set = (patch) => setF((v) => ({ ...v, ...patch }));
   const age = ageFromDob(f.dob);
   const tooYoung = age !== null && age < 18;
-  const valid = f.firstName.trim() && f.lastName.trim() && f.username.trim() && f.gender && age !== null && !tooYoung && f.interestedIn;
+  const valid = f.firstName.trim() && f.lastName.trim() && f.username.trim() && age !== null && !tooYoung;
   const thisYear = new Date().getFullYear();
 
   const selectStyle = { width: 'auto', height: 40, marginBottom: 0, padding: '0 12px', borderColor: 'var(--green)', borderRadius: 8, fontSize: 14 };
 
   return (
-    <StepScreen title="Create dating profile" canNext={valid} onNext={async () => { const r = await saveProfile({ ...f, firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: f.username.trim() }); if (r.error) return; setFilters({ ...state.filters, seeking: f.interestedIn }); next(); }}>
+    <StepScreen title="Create your profile" canNext={valid} onNext={async () => { const r = await saveProfile({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: f.username.trim(), dob: f.dob }); if (r.error) return; next(); }}>
       <p className="subtitle">Tell us a bit about yourself</p>
       <p className="label" style={{ marginTop: 0, fontSize: 14 }}>Full name</p>
       <div className="field-row">
@@ -47,9 +57,6 @@ export function SetupProfile() {
         <input className="field green" placeholder="Last name" value={f.lastName} onChange={(e) => set({ lastName: e.target.value })} aria-label="Last name" autoComplete="family-name" style={{ marginBottom: 16 }} />
       </div>
       <input className="field green" placeholder="Username" value={f.username} onChange={(e) => set({ username: e.target.value.replace(/\s/g, '') })} aria-label="Username" style={{ marginBottom: 8 }} />
-
-      <p className="label">Gender</p>
-      <ChipGroup options={GENDERS} value={f.gender} onChange={(gender) => set({ gender })} />
 
       <p className="label">DOB</p>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -67,9 +74,32 @@ export function SetupProfile() {
         </select>
       </div>
       {tooYoung && <p className="error">You must be 18 or older to use alignment.</p>}
+      <p className="hint" style={{ marginTop: 16 }}>Only your age is shown to others. You’ll set up your dating profile when you first open Dating.</p>
+    </StepScreen>
+  );
+}
 
+// First step of the dating profile.
+export function SetupDatingBasics() {
+  const { state, saveProfile, setFilters } = useApp();
+  const next = useStepNav('dating');
+  const [gender, setGender] = useState(state.me.gender);
+  const [interestedIn, setInterestedIn] = useState(state.me.interestedIn);
+  return (
+    <StepScreen
+      title="Create dating profile"
+      canNext={!!(gender && interestedIn)}
+      onNext={async () => {
+        if ((await saveProfile({ gender, interestedIn })).error) return;
+        setFilters({ ...state.filters, seeking: interestedIn });
+        next();
+      }}
+    >
+      <p className="subtitle">This is what people see when you show up in Discover.</p>
+      <p className="label">Gender</p>
+      <ChipGroup options={GENDERS} value={gender} onChange={setGender} />
       <p className="label">Who are you interested in?</p>
-      <ChipGroup options={INTERESTED_IN} value={f.interestedIn} onChange={(interestedIn) => set({ interestedIn })} />
+      <ChipGroup options={INTERESTED_IN} value={interestedIn} onChange={setInterestedIn} />
     </StepScreen>
   );
 }
@@ -272,6 +302,7 @@ const MAX_PHOTOS = 6;
 
 export function SetupPhotos() {
   const { state, saveProfile, toast } = useApp();
+  const [params] = useSearchParams();
   const next = useStepNav('photos');
   const [photos, setPhotos] = useState(state.me.photos);
   const input = useRef(null);
@@ -288,7 +319,7 @@ export function SetupPhotos() {
   };
 
   return (
-    <StepScreen canNext={photos.length >= 2} onNext={async () => { if (!(await saveProfile({ photos })).error) next(); }}>
+    <StepScreen canNext={photos.length >= 2} nextLabel={params.get('edit') === '1' ? 'Save' : 'Start dating'} onNext={async () => { if (!(await saveProfile({ photos })).error) next(); }}>
       <h1 className="title-left" style={{ marginBottom: 24 }}>
         {photos.length ? 'Upload at least two pictures' : 'Upload some of your favourite pictures'}
       </h1>

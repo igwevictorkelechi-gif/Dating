@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store.jsx';
-import { Logo } from '../components/Logo.jsx';
-import { Illustration } from '../components/Art.jsx';
+import { Logo, LogoMark } from '../components/Logo.jsx';
+import { Portrait } from '../components/Art.jsx';
+import { WELCOME_PHOTOS } from '../data/onboarding.js';
 import { TopBar } from '../components/ui.jsx';
 import { InstallButton } from '../components/Install.jsx';
 
@@ -34,56 +35,36 @@ export function Splash() {
   );
 }
 
-const SLIDES = [
-  { title: 'Align with your soulmate', art: 'soulmate' },
-  { title: 'Share deep conversations with your soul tribe.', art: 'tribe' },
-  { title: '', art: 'together' },
-];
+// A collage tile: the photo, or a drawn placeholder if it can't load (offline, blocked, missing file).
+function WelcomePhoto({ photo, index, className }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className={`welcome-tile ${className}`}>
+      {failed
+        ? <Portrait person={{ id: `welcome-${index}`, name: ' ', hue: photo.hue }} />
+        : <img src={photo.src} alt={photo.alt} loading={index < 3 ? 'eager' : 'lazy'} onError={() => setFailed(true)} />}
+    </div>
+  );
+}
 
+// One welcome page: real people up top, then sign up or log in.
 export function Welcome() {
   const navigate = useNavigate();
-  const [i, setI] = useState(0);
-  const last = i === SLIDES.length - 1;
-  const startX = useRef(null);
-
-  const onTouchStart = (e) => { startX.current = e.touches[0].clientX; };
-  const onTouchEnd = (e) => {
-    if (startX.current === null) return;
-    const dx = e.changedTouches[0].clientX - startX.current;
-    if (dx < -40) setI((v) => Math.min(SLIDES.length - 1, v + 1));
-    if (dx > 40) setI((v) => Math.max(0, v - 1));
-    startX.current = null;
-  };
-
+  const tiles = ['t1', 't2', 't3', 't4', 't5'];
   return (
-    <main className="screen" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ alignItems: 'center', textAlign: 'center' }}>
-      <h1 className="title" style={{ minHeight: 52, marginTop: 28 }}>{SLIDES[i].title}</h1>
-      <div style={{ width: '100%', display: 'grid', placeItems: 'center', flex: 1 }}>
-        <Illustration kind={SLIDES[i].art} />
+    <main className="screen welcome">
+      <div className="welcome-collage">
+        {WELCOME_PHOTOS.slice(0, tiles.length).map((p, i) => <WelcomePhoto key={p.src} photo={p} index={i} className={tiles[i]} />)}
+        <span className="welcome-badge" aria-hidden="true"><LogoMark size={44} /></span>
       </div>
-      <div style={{ display: 'grid', gap: 18, justifyItems: 'center', margin: '24px 0 12px' }}>
-        {last ? (
-          <>
-            <button type="button" className="btn btn-primary" style={{ minWidth: 150 }} onClick={() => navigate('/signup')}>Create Account</button>
-            <button type="button" className="btn btn-primary" style={{ minWidth: 150 }} onClick={() => navigate('/login')}>Login</button>
-            <InstallButton />
-          </>
-        ) : (
-          <button type="button" className="btn btn-primary" style={{ minWidth: 120 }} onClick={() => setI(i + 1)}>Next</button>
-        )}
-        <div style={{ display: 'flex', gap: 24 }} role="tablist" aria-label="Intro slides">
-          {SLIDES.map((_, n) => (
-            <button
-              key={n}
-              type="button"
-              role="tab"
-              aria-selected={n === i}
-              aria-label={`Slide ${n + 1}`}
-              onClick={() => setI(n)}
-              style={{ width: 12, height: 12, borderRadius: '50%', border: 0, padding: 0, background: n === i || last ? 'var(--green)' : 'var(--line)' }}
-            />
-          ))}
-        </div>
+      <div className="welcome-copy">
+        <h1 className="title">Align with your soulmate</h1>
+        <p className="subtitle">Share deep conversations with your soul tribe, and meet people who see the world the way you do.</p>
+      </div>
+      <div className="welcome-actions">
+        <button type="button" className="btn btn-primary btn-block" onClick={() => navigate('/signup')}>Create Account</button>
+        <button type="button" className="btn btn-outline btn-block" onClick={() => navigate('/login')}>Login</button>
+        <InstallButton />
       </div>
     </main>
   );
