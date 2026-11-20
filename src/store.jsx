@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { listOwnFiles, supabase, uploadIfNeeded, BUCKET } from './lib/supabase.js';
+import { extractTags } from './lib/trending.js';
 
 // App state, backed by Supabase (auth, Postgres, storage and realtime).
 // Screens use the same shapes as before: `state.me`, `person(id)`, `posts`, `state.chats`, …
@@ -106,7 +107,8 @@ function friendlyError(error) {
   return msg || 'Something went wrong. Please try again.';
 }
 
-const POST_SELECT = `id, author_id, kind, body, images, video_url, created_at,
+// `*` includes tags / flagged / flag_reason once the trending migration is applied, and still works before it.
+const POST_SELECT = `*,
   author:profiles!posts_author_id_fkey(${PROFILE_COLUMNS}),
   post_likes(user_id),
   comments(id, body, created_at, author_id, author:profiles!comments_author_id_fkey(${PROFILE_COLUMNS}))`;
@@ -292,6 +294,30 @@ export function AppProvider({ children }) {
     return null;
   }, [storePosts, fail]);
 
+  // Trending posts, ranked by the server (optionally for one '#topic' or keyword).
+  // Returns the post ids in order, or null if the server can't rank yet (the screen then ranks on the device).
+  const loadTrending = useCallback(async (topic) => {
+    const { data, error } = await supabase.rpc('trending_posts', { lim: 50, topic: topic || null }).select(POST_SELECT);
+    if (error) return null;
+    storePosts(data || []);
+    return (data || []).map((r) => r.id);
+  }, [storePosts]);
+
+  // Newest posts about one '#topic' or keyword.
+  const loadTopic = useCallback(async (topic) => {
+    const word = topic.replace(/[%_\\]/g, '');
+    const { data } = await supabase.from('posts').select(POST_SELECT).ilike('body', `%${word}%`)
+      .order('created_at', { ascending: false }).limit(50);
+    storePosts(data || []);
+  }, [storePosts]);
+
+  // Trending hashtags and keywords from the server, or null if it can't rank yet.
+  const loadTopics = useCallback(async () => {
+    const { data, error } = await supabase.rpc('trending_topics', { lim: 12 });
+    if (error) return null;
+    return data || [];
+  }, []);
+
   const loadPostsBy = useCallback(async (authorId) => {
     const id = authorId === 'me' ? stateRef.current.myId : authorId;
     if (!id) return;
@@ -307,7 +333,7 @@ export function AppProvider({ children }) {
     };
 
     return {
-      update, toast, fail, loadFeed, loadPostsBy, loadPeople, remember,
+      update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadPostsBy, loadPeople, remember,
 
       // ----- auth -----
       signUp: async (email, password) => {
@@ -586,7 +612,7 @@ export function AppProvider({ children }) {
 
       setTheme: (theme) => update(() => ({ theme })),
     };
-  }, [update, toast, fail, loadFeed, loadPostsBy, loadPeople, remember, storePosts, toMessage, otherFor, addMessage]);
+  }, [update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadPostsBy, loadPeople, remember, storePosts, toMessage, otherFor, addMessage]);
 
   // ---------- derived values for screens ----------
   const value = useMemo(() => {
@@ -611,6 +637,7 @@ export function AppProvider({ children }) {
           id: r.id, authorId, author, createdAt: new Date(r.created_at).getTime(),
           ...(r.kind === 'note' ? { note: r.body } : { text: r.body }),
           images: r.images, video: r.video_url, liked, likeCount,
+          tags: r.tags || extractTags(r.body), flagged: !!r.flagged, flagReason: r.flag_reason || null,
           comments: (r.comments || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
             .map((c) => ({ id: c.id, by: asLocal(c.author_id), text: c.body, at: new Date(c.created_at).getTime() }))
             .filter((c) => person(c.by)),
@@ -619,7 +646,10 @@ export function AppProvider({ children }) {
       .filter(Boolean)
       .sort((a, b) => b.createdAt - a.createdAt);
 
-    return { ...actions, state, toastMsg, self, person, posts };
+    // A dating profile is ready once it has the basics and at least two photos.
+    const datingReady = !!(me.gender && me.interestedIn && me.orientation && me.photos.length >= 2);
+
+    return { ...actions, state, toastMsg, self, person, posts, datingReady };
   }, [actions, state, toastMsg]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -5,11 +5,49 @@ import {
 } from 'lucide-react';
 import { ageFromDob, firstName, resizeImage, timeAgo, useApp } from '../store.jsx';
 import { INTERESTED_IN } from '../data/seed.js';
-import { Avatar, CheckRow, ChipGroup, DatingNav, Sheet } from '../components/ui.jsx';
+import { Avatar, BottomNav, CheckRow, ChipGroup, DatingNav, Sheet } from '../components/ui.jsx';
 import { LogoMark } from '../components/Logo.jsx';
 import { Portrait } from '../components/Art.jsx';
 import PostCard from '../components/PostCard.jsx';
 import { AudioPlayer, Waveform } from './Setup.jsx';
+
+// Shown the first time someone opens Dating, until their dating profile is ready.
+export function DatingStart() {
+  const navigate = useNavigate();
+  const { state, datingReady } = useApp();
+  const me = state.me;
+  useEffect(() => { if (datingReady) navigate('/dating', { replace: true }); }, [datingReady, navigate]);
+  const steps = [
+    ['Gender & who you’re into', !!(me.gender && me.interestedIn)],
+    ['Orientation', !!me.orientation],
+    ['Beliefs, causes & lifestyle', !!(me.spiritual && me.political)],
+    ['Hobbies', me.hobbies.length > 0],
+    ['Voice note', !!me.audio],
+    ['At least two photos', me.photos.length >= 2],
+  ];
+  const started = steps.some(([, done]) => done);
+  return (
+    <>
+      <main className="screen" style={{ textAlign: 'center' }}>
+        <div style={{ display: 'grid', justifyItems: 'center', gap: 12, marginTop: 24 }}>
+          <LogoMark size={64} />
+          <h1 className="title" style={{ margin: 0 }}>Create your dating profile</h1>
+          <p className="subtitle" style={{ margin: 0 }}>Dating is separate from your feed. Set up your dating profile first so the right people can find you. It takes about two minutes.</p>
+        </div>
+        <ul className="dating-steps">
+          {steps.map(([label, done]) => (
+            <li key={label} className={done ? 'done' : ''}><span aria-hidden="true">{done ? <Check size={14} strokeWidth={3} /> : null}</span>{label}{done && <span className="sr-only"> (done)</span>}</li>
+          ))}
+        </ul>
+        <div className="grow" />
+        <button type="button" className="btn btn-primary btn-block" onClick={() => navigate('/setup/dating')}>
+          {started ? 'Continue setting up' : 'Get started'}
+        </button>
+      </main>
+      <BottomNav />
+    </>
+  );
+}
 
 function DatingHeader({ filters = true }) {
   const navigate = useNavigate();
@@ -99,7 +137,10 @@ export function Discover() {
   const start = useRef(null);
   const busy = useRef(false);
 
-  const refill = useCallback(() => { discover().then(setDeck); }, [discover]);
+  // Only people who have finished a dating profile show up here.
+  const refill = useCallback(() => {
+    discover().then((people) => setDeck(people.filter((p) => p.gender && p.orientation && p.photos.length >= 2)));
+  }, [discover]);
   useEffect(() => { refill(); }, [refill, filters]);
 
   const top = deck?.[0];
@@ -499,7 +540,7 @@ export function MyDatingProfile() {
     political: me.political, hobbies: me.hobbies, causes: me.causes, smoke: me.smoke, drink: me.drink,
   };
   const edits = [
-    ['profile', 'Name, gender & birthday'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs & habits'],
+    ['profile', 'Name & birthday'], ['dating', 'Gender & who you’re into'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs & habits'],
     ['hobbies', 'Hobbies'], ['audio', 'Conspiracy theory'], ['photos', 'Pictures'],
   ];
   return (

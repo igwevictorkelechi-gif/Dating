@@ -92,7 +92,6 @@ function ProfileView({ profile, isMe }) {
   const following = state.following.includes(profile.id);
   const matched = state.swipes.matches.includes(profile.id) && !state.closedChats.includes(profile.id);
   const liked = state.swipes.liked.includes(profile.id);
-  const matchCount = state.swipes.matches.filter((id) => !state.closedChats.includes(id)).length;
   const editStep = (step) => (isMe ? `/setup/${step}?edit=1&back=/profile` : null);
 
   // Photos: profile pictures, plus (for other people) pictures from their posts.
@@ -145,11 +144,10 @@ function ProfileView({ profile, isMe }) {
           {profile.lookingFor && <p className="pf-intent"><HeartHandshake size={16} /> Looking for: {profile.lookingFor}</p>}
         </div>
 
-        <dl className={`pf-stats ${isMe ? 'four' : ''}`}>
+        <dl className="pf-stats">
           <div><dt>Posts</dt><dd>{theirPosts.length}</dd></div>
           <div><dt>Followers</dt><dd>{followers.toLocaleString()}</dd></div>
           <div><dt>Following</dt><dd>{profile.following.toLocaleString()}</dd></div>
-          {isMe && <div><dt>Matches</dt><dd>{matchCount}</dd></div>}
         </dl>
 
         <div className="pf-actions">
@@ -187,7 +185,7 @@ function ProfileView({ profile, isMe }) {
             <Link to={nextItem.to} className="pf-next">
               {nextItem.label} <ChevronRight size={18} />
             </Link>
-            <p className="hint" style={{ margin: 0 }}>Complete profiles get more matches.</p>
+            <p className="hint" style={{ margin: 0 }}>Complete profiles get noticed more.</p>
           </div>
         )}
 
@@ -352,7 +350,7 @@ export function EditProfile() {
 
   const back = '&back=/profile/edit';
   const datingLinks = [
-    ['profile', 'Name, gender & birthday'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs, causes & lifestyle'],
+    ['profile', 'Name & birthday'], ['dating', 'Gender & who you’re into'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs, causes & lifestyle'],
     ['hobbies', 'Hobbies'], ['audio', 'Voice note'], ['photos', 'Photos'],
   ];
 
