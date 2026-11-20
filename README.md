@@ -14,6 +14,8 @@ npm run build    # production build in dist/ (static files, host anywhere)
 
 Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages, Netlify, Vercel or any static host with no server setup.
 
+**Install as an app (PWA):** alignment can be installed to the Home Screen. On Android and desktop Chrome/Edge, use **Install the app** on the welcome screen or in Settings (or the browser's install icon); on iPhone, tap Share → **Add to Home Screen**. A service worker (`src/sw.js`, built into `dist/sw.js` by `vite.config.js`) keeps the app's pages and files on the device so it opens instantly and still loads offline. Live data (Supabase) is never cached.
+
 **iPhone preview:** open `/iphone.html` (e.g. http://localhost:5173/iphone.html) to use the app inside an iPhone 15 Pro frame. Handy for demos on a computer; on a phone the frame drops away.
 
 **Backend:** Supabase (accounts, database, file storage, live chat). See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) for the dashboard steps to finish before launch.

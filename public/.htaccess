@@ -35,6 +35,10 @@ AddType image/svg+xml .svg
   <FilesMatch "\.(html|webmanifest)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
+  # The service worker must always be checked, or app updates can get stuck
+  <FilesMatch "^sw\.js$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
 
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "SAMEORIGIN"

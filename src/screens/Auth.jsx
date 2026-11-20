@@ -4,6 +4,7 @@ import { useApp } from '../store.jsx';
 import { Logo } from '../components/Logo.jsx';
 import { Illustration } from '../components/Art.jsx';
 import { TopBar } from '../components/ui.jsx';
+import { InstallButton } from '../components/Install.jsx';
 
 export function Splash() {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export function Welcome() {
           <>
             <button type="button" className="btn btn-primary" style={{ minWidth: 150 }} onClick={() => navigate('/signup')}>Create Account</button>
             <button type="button" className="btn btn-primary" style={{ minWidth: 150 }} onClick={() => navigate('/login')}>Login</button>
+            <InstallButton />
           </>
         ) : (
           <button type="button" className="btn btn-primary" style={{ minWidth: 120 }} onClick={() => setI(i + 1)}>Next</button>

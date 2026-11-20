@@ -4,6 +4,7 @@ import { ChevronRight, Copy, Moon, Sun } from 'lucide-react';
 import { useApp } from '../store.jsx';
 import { SUPPORT_EMAIL } from '../data/seed.js';
 import { BottomNav, CheckRow, Confirm, TopBar } from '../components/ui.jsx';
+import { InstallButton } from '../components/Install.jsx';
 
 export function Settings() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export function Settings() {
           <Link to="/settings/account" className="row-link">Account <ChevronRight size={20} /></Link>
           <Link to="/settings/appearance" className="row-link">Appearance <ChevronRight size={20} /></Link>
           <Link to="/settings/help" className="row-link">Help and support <ChevronRight size={20} /></Link>
+          <InstallButton className="row-link">Install the app <ChevronRight size={20} /></InstallButton>
           <button type="button" className="row-link" onClick={() => setConfirm('logout')}>Log out <ChevronRight size={20} /></button>
           <button type="button" className="row-link danger" onClick={() => setConfirm('delete')}>Delete account</button>
         </div>
