@@ -1,20 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Bell, ImagePlus, Plus, Search, Video, X } from 'lucide-react';
+import { Bell, ImagePlus, Plus, Search, TrendingUp, Video, X } from 'lucide-react';
 import { fileToDataUrl, resizeImage, timeAgo, useApp } from '../store.jsx';
 import { Avatar, BottomNav, TopBar } from '../components/ui.jsx';
 import { LogoMark } from '../components/Logo.jsx';
 import PostCard from '../components/PostCard.jsx';
+import { localTopics, matchesTopic, trendScore } from '../lib/trending.js';
+
+const FEED_TABS = [['trending', 'Trending'], ['latest', 'Latest']];
 
 export function Home() {
-  const { posts, state, loadFeed, searchPeople } = useApp();
+  const { posts, state, loadFeed, loadTrending, loadTopic, loadTopics, searchPeople } = useApp();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'latest' ? 'latest' : 'trending';
+  const topic = params.get('topic') || '';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [rankedIds, setRankedIds] = useState(null); // server's trending order, or null to rank on the device
+  const [serverTopics, setServerTopics] = useState(null);
   const q = query.trim();
   const unread = state.notifications.some((n) => !n.read);
 
-  useEffect(() => { loadFeed().finally(() => setLoading(false)); }, [loadFeed]);
+  const setView = (next) => {
+    const merged = { tab, topic, ...next };
+    const out = {};
+    if (merged.tab === 'latest') out.tab = 'latest';
+    if (merged.topic) out.topic = merged.topic;
+    setParams(out, { replace: true });
+  };
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    const work = [loadFeed(), loadTopics().then((t) => { if (live) setServerTopics(t); })];
+    if (topic) work.push(loadTopic(topic));
+    if (tab === 'trending') work.push(loadTrending(topic).then((ids) => { if (live) setRankedIds(ids); }));
+    Promise.all(work).finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [tab, topic, loadFeed, loadTrending, loadTopic, loadTopics]);
 
   // Search as you type, after a short pause.
   useEffect(() => {
@@ -23,16 +47,26 @@ export function Home() {
     return () => clearTimeout(t);
   }, [q, searchPeople]);
 
-  // People you follow (and you) first, then everyone else, newest first within each group.
   const feed = useMemo(() => {
-    const followed = new Set([...state.following, 'me']);
-    return [...posts].sort((a, b) => (followed.has(b.authorId) - followed.has(a.authorId)) || (b.createdAt - a.createdAt));
-  }, [posts, state.following]);
+    const shown = posts.filter((p) => matchesTopic(p, topic));
+    if (tab === 'latest') return shown; // newest first
+    if (rankedIds) {
+      const byId = new Map(shown.map((p) => [p.id, p]));
+      return rankedIds.map((id) => byId.get(id)).filter(Boolean);
+    }
+    const now = Date.now();
+    return shown.filter((p) => !p.flagged).sort((a, b) => trendScore(b, now) - trendScore(a, now));
+  }, [posts, tab, topic, rankedIds]);
+
+  const topics = useMemo(() => {
+    const list = (serverTopics && serverTopics.length ? serverTopics : localTopics(posts)).map((t) => t.topic);
+    return topic && !list.includes(topic) ? [topic, ...list] : list;
+  }, [serverTopics, posts, topic]);
 
   return (
     <>
       <main className="screen flush" style={{ paddingTop: 12 }}>
-        <div style={{ padding: '0 20px', position: 'sticky', top: 0, zIndex: 5, background: 'var(--bg)', paddingBottom: 12 }}>
+        <div style={{ padding: '0 20px', position: 'sticky', top: 0, zIndex: 5, background: 'var(--bg)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <LogoMark size={40} />
             <div style={{ display: 'flex', gap: 4 }}>
@@ -61,15 +95,31 @@ export function Home() {
               ))}
             </ul>
           )}
+          <div className="feed-tabs" role="tablist" aria-label="Feed">
+            {FEED_TABS.map(([key, label]) => (
+              <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setView({ tab: key })}>
+                {key === 'trending' && <TrendingUp size={16} />} {label}
+              </button>
+            ))}
+          </div>
+          {topics.length > 0 && (
+            <div className="topics" aria-label="Trending topics">
+              {topics.map((t) => (
+                <button key={t} type="button" className="topic" aria-pressed={t === topic} onClick={() => setView({ topic: t === topic ? '' : t })}>
+                  {t}{t === topic && <X size={14} />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {loading && feed.length === 0 && <p className="empty">Loading your feed…</p>}
         {!loading && feed.length === 0 && (
           <div className="empty">
-            Nothing here yet. Share the first post, or search for people to follow.
+            {topic ? <>No posts about {topic} yet.</> : <>Nothing here yet. Share the first post, or search for people to follow.</>}
             <div style={{ marginTop: 12 }}><Link to="/post/new" className="btn btn-primary btn-sm">Create a post</Link></div>
           </div>
         )}
-        {feed.map((post) => <PostCard key={post.id} post={post} />)}
+        {feed.map((post) => <PostCard key={post.id} post={post} onTopic={(t) => setView({ topic: t })} />)}
       </main>
       <BottomNav />
     </>
@@ -181,6 +231,7 @@ export function CreatePost() {
         autoFocus={type !== 'images' && type !== 'videos'}
         aria-label="Post text"
       />
+      <p className="hint" style={{ marginTop: -4 }}>Add #topics, like #travel or #music, so people can find your post and it can trend.</p>
       {images.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
           {images.map((src, i) => (

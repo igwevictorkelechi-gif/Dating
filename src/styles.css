@@ -342,6 +342,22 @@ select.field { appearance: none; background-image: none; }
 .post-actions { display: flex; align-items: center; gap: 16px; padding: 10px 18px 12px; }
 .post-actions button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 4px; font-size: 14px; color: var(--ink); }
 .post-actions button.liked svg { color: var(--red); fill: var(--red); }
+/* ---------- Feed: tabs, trending topics, hashtags, flagged posts ---------- */
+.feed-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10px; border-bottom: 1px solid var(--line-soft); }
+.feed-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 4px 10px; border: 0; border-bottom: 2.5px solid transparent; background: none; font-size: 14px; font-weight: 600; color: var(--muted); }
+.feed-tabs button[aria-selected='true'] { color: var(--green); border-bottom-color: var(--green); }
+.topics { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 12px; margin: 0 -20px; padding-left: 20px; padding-right: 20px; scrollbar-width: none; }
+.topics::-webkit-scrollbar { display: none; }
+.topic { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.topic[aria-pressed='true'] { border-color: var(--green); background: var(--green); color: #fff; }
+.hashtag { display: inline; padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--green); cursor: pointer; }
+.post-note .hashtag { color: inherit; text-decoration: underline; }
+.flag-label { display: flex; align-items: center; gap: 6px; margin: 0 22px 10px; font-size: 13px; font-weight: 600; color: var(--orange); }
+.flag-cover { display: grid; justify-items: center; gap: 6px; margin: 0 22px 8px; padding: 22px 16px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface-2); text-align: center; font-size: 14px; color: var(--ink-2); }
+.flag-cover svg { color: var(--orange); }
+.flag-cover strong { color: var(--ink); }
+.flag-cover .btn { margin-top: 6px; }
+
 .comments { padding: 0 22px 14px; display: grid; gap: 8px; font-size: 14px; }
 .comments p { margin: 0; line-height: 1.45; }
 .comment-form { display: flex; gap: 8px; }

@@ -1,11 +1,22 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Plus, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, MessageCircle, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 import { timeAgo, useApp } from '../store.jsx';
 import { Avatar } from './ui.jsx';
 import { Scene } from './Art.jsx';
 
-export default function PostCard({ post }) {
+// Shows #topics as buttons that open that topic in the feed.
+function WithTags({ text, onTopic }) {
+  const parts = text.split(/(#[A-Za-z0-9_]{2,40})/g);
+  return parts.map((part, i) => (i % 2 === 1
+    ? <button key={i} type="button" className="hashtag" onClick={() => onTopic?.(part.toLowerCase())}>{part}</button>
+    : part));
+}
+
+export default function PostCard({ post, onTopic }) {
+  const navigate = useNavigate();
+  const [revealed, setRevealed] = useState(false);
+  const openTopic = onTopic || ((t) => navigate(`/home?topic=${encodeURIComponent(t)}`));
   const { state, toggleFollow, toggleLike, addComment, deletePost, person, toast } = useApp();
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState('');
@@ -42,18 +53,32 @@ export default function PostCard({ post }) {
         )}
       </header>
 
-      {post.text && <p className="post-text">{post.text}</p>}
-      {post.note && <div className="post-note">{post.note}</div>}
-      {post.scene !== undefined && <div className="post-media"><Scene index={post.scene} /></div>}
-      {images.length > 0 && (
-        <div className={`post-media ${images.length > 1 ? 'two' : ''}`}>
-          {images.map((src, i) => <img key={i} src={src} alt="" />)}
-        </div>
+      {post.flagged && (mine || revealed) && (
+        <p className="flag-label"><ShieldAlert size={16} /> Flagged: {post.flagReason || 'Sensitive content'}{mine && ' · others see a warning first'}</p>
       )}
-      {post.video && (
-        <div className="post-media">
-          <video src={post.video} controls playsInline preload="metadata" />
+      {post.flagged && !mine && !revealed ? (
+        <div className="flag-cover">
+          <ShieldAlert size={28} />
+          <strong>{post.flagReason || 'Sensitive content'}</strong>
+          <span>This post contains a flagged keyword.</span>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setRevealed(true)}>Show post</button>
         </div>
+      ) : (
+        <>
+          {post.text && <p className="post-text"><WithTags text={post.text} onTopic={openTopic} /></p>}
+          {post.note && <div className="post-note"><span><WithTags text={post.note} onTopic={openTopic} /></span></div>}
+          {post.scene !== undefined && <div className="post-media"><Scene index={post.scene} /></div>}
+          {images.length > 0 && (
+            <div className={`post-media ${images.length > 1 ? 'two' : ''}`}>
+              {images.map((src, i) => <img key={i} src={src} alt="" />)}
+            </div>
+          )}
+          {post.video && (
+            <div className="post-media">
+              <video src={post.video} controls playsInline preload="metadata" />
+            </div>
+          )}
+        </>
       )}
 
       <div className="post-actions">
