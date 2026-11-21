@@ -9,17 +9,20 @@ import { extractTags } from './lib/trending.js';
 const PREFS_KEY = 'alignment:prefs'; // theme and dating filters stay on this device
 
 const EMPTY_PROFILE = {
-  firstName: '', lastName: '', username: '', gender: '', dob: { d: '', m: '', y: '' }, interestedIn: '',
+  firstName: '', lastName: '', username: '', gender: '', dob: { d: '', m: '', y: '' }, interestedIn: '', zodiac: '',
   orientation: '', spiritual: '', political: '', causes: [], smoke: '', drink: '',
   hobbies: [], audio: null, photos: [], bio: '', avatar: null,
   location: '', job: '', lookingFor: '', age: null, hue: 110,
 };
 
+const DEFAULT_FILTERS = { seeking: 'Both', minAge: 18, maxAge: 45, zodiacs: [] }; // zodiacs: [] = any sign
+
 function loadPrefs() {
   try {
-    return { filters: { seeking: 'Both', minAge: 18, maxAge: 45 }, theme: 'light', ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+    return { theme: 'light', ...saved, filters: { ...DEFAULT_FILTERS, ...(saved.filters || {}) } };
   } catch {
-    return { filters: { seeking: 'Both', minAge: 18, maxAge: 45 }, theme: 'light' };
+    return { filters: DEFAULT_FILTERS, theme: 'light' };
   }
 }
 
@@ -53,17 +56,20 @@ const INITIAL = {
   chats: {}, // other person's id -> messages
   closedChats: [],
   notifications: [],
+  plan: null, // from my_plan(): free swipes, trial, Pro, admin. null = unknown (no limits shown)
   ...loadPrefs(),
 };
 
-const PROFILE_COLUMNS = 'id, username, first_name, last_name, bio, gender, age, interested_in, orientation, spiritual, political, causes, smoke, drink, hobbies, location, job, looking_for, avatar_url, photos, audio_url, hue, is_creator, onboarded, created_at';
+// Every column: profiles hold nothing private (birthdays live in profile_private), and new columns such as zodiac
+// come through without the app breaking before their migration is applied.
+const PROFILE_COLUMNS = '*';
 
 export function rowToPerson(r) {
   const name = [r.first_name, r.last_name].filter(Boolean).join(' ') || r.username || 'New member';
   return {
     id: r.id, name, username: r.username || 'new_member', age: r.age, gender: r.gender, location: r.location,
     job: r.job, lookingFor: r.looking_for, spiritual: r.spiritual, political: r.political, orientation: r.orientation,
-    interestedIn: r.interested_in, causes: r.causes || [], hobbies: r.hobbies || [], smoke: r.smoke, drink: r.drink,
+    interestedIn: r.interested_in, zodiac: r.zodiac || '', causes: r.causes || [], hobbies: r.hobbies || [], smoke: r.smoke, drink: r.drink,
     bio: r.bio, avatar: r.avatar_url || r.photos?.[0] || null, photos: r.photos || [], audio: r.audio_url,
     hue: r.hue ?? 120, creator: r.is_creator, followers: 0, following: 0,
   };
@@ -75,7 +81,7 @@ function rowToMe(r, dob) {
     ...EMPTY_PROFILE,
     firstName: r.first_name || '', lastName: r.last_name || '', username: r.username || '', gender: r.gender || '',
     dob: dob ? { d: String(Number(d)), m: String(Number(m)), y } : { d: '', m: '', y: '' },
-    interestedIn: r.interested_in || '', orientation: r.orientation || '', spiritual: r.spiritual || '',
+    interestedIn: r.interested_in || '', zodiac: r.zodiac || '', orientation: r.orientation || '', spiritual: r.spiritual || '',
     political: r.political || '', causes: r.causes || [], smoke: r.smoke || '', drink: r.drink || '',
     hobbies: r.hobbies || [], audio: r.audio_url, photos: r.photos || [], bio: r.bio || '', avatar: r.avatar_url,
     location: r.location || '', job: r.job || '', lookingFor: r.looking_for || '', age: r.age, hue: r.hue ?? 110,
@@ -84,11 +90,41 @@ function rowToMe(r, dob) {
 
 // camelCase profile fields -> database columns
 const COLUMN_FOR = {
-  firstName: 'first_name', lastName: 'last_name', username: 'username', gender: 'gender', interestedIn: 'interested_in',
+  firstName: 'first_name', lastName: 'last_name', username: 'username', gender: 'gender', interestedIn: 'interested_in', zodiac: 'zodiac',
   orientation: 'orientation', spiritual: 'spiritual', political: 'political', causes: 'causes', smoke: 'smoke',
   drink: 'drink', hobbies: 'hobbies', audio: 'audio_url', photos: 'photos', bio: 'bio', avatar: 'avatar_url',
   location: 'location', job: 'job', lookingFor: 'looking_for',
 };
+
+// Why the free plan stops a swipe, or null if it's allowed.
+export function swipeBlock(plan, kind) {
+  if (!plan || plan.is_pro || plan.in_trial) return null;
+  if (plan.swipes_used >= plan.free_swipes) return 'limit';
+  if (kind === 'super') return 'pro_only';
+  return null;
+}
+
+// Free swipes left, or null when unlimited (Pro, free trial, or plan not loaded).
+export function swipesLeft(plan) {
+  if (!plan || plan.is_pro || plan.in_trial) return null;
+  return Math.max(0, plan.free_swipes - plan.swipes_used);
+}
+
+// Calls alignment's own server (Vercel functions in /api) as the signed-in user.
+async function callPayApi(path, init = {}) {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const res = await fetch(path, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token || ''}` },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: body.error || 'Payments aren’t available right now. Please try again later.' };
+    return body;
+  } catch {
+    return { error: 'Can’t reach alignment right now. Check your connection and try again.' };
+  }
+}
 
 function friendlyError(error) {
   const msg = error?.message || String(error || '');
@@ -250,6 +286,14 @@ export function AppProvider({ children }) {
     return () => sub.subscription.unsubscribe();
   }, [bootstrap, update, fail]);
 
+  // ---------- plan (free swipes, trial, Pro) ----------
+  const loadPlan = useCallback(async () => {
+    const { data, error } = await supabase.rpc('my_plan');
+    update(() => ({ plan: error ? null : data }));
+    return error ? null : data;
+  }, [update]);
+  useEffect(() => { if (state.myId) loadPlan(); }, [state.myId, loadPlan]);
+
   // ---------- realtime: chat, matches, notifications ----------
   useEffect(() => {
     if (!state.myId) return undefined;
@@ -303,6 +347,15 @@ export function AppProvider({ children }) {
     return (data || []).map((r) => r.id);
   }, [storePosts]);
 
+  // Newest posts from the people you follow.
+  const loadFollowing = useCallback(async () => {
+    const ids = stateRef.current.following;
+    if (!ids.length) return;
+    const { data } = await supabase.from('posts').select(POST_SELECT).in('author_id', ids.slice(0, 200))
+      .order('created_at', { ascending: false }).limit(50);
+    storePosts(data || []);
+  }, [storePosts]);
+
   // Newest posts about one '#topic' or keyword.
   const loadTopic = useCallback(async (topic) => {
     const word = topic.replace(/[%_\\]/g, '');
@@ -333,7 +386,7 @@ export function AppProvider({ children }) {
     };
 
     return {
-      update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadPostsBy, loadPeople, remember,
+      update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadFollowing, loadPostsBy, loadPeople, remember,
 
       // ----- auth -----
       signUp: async (email, password) => {
@@ -536,13 +589,20 @@ export function AppProvider({ children }) {
       // ----- dating -----
       discover: async () => {
         const f = stateRef.current.filters;
-        const { data, error } = await supabase.rpc('discover', { seeking: f.seeking, min_age: f.minAge, max_age: f.maxAge === 60 ? 99 : f.maxAge, lim: 30 });
+        const zodiacs = f.zodiacs?.length ? f.zodiacs : null;
+        const args = { seeking: f.seeking, min_age: f.minAge, max_age: f.maxAge === 60 ? 99 : f.maxAge, lim: 30 };
+        const { data, error } = await supabase.rpc('discover', zodiacs ? { ...args, zodiacs } : args);
         if (error) { fail(error); return []; }
         remember(data || []);
-        return (data || []).map(rowToPerson);
+        // Also filtered here, so the zodiac filter holds even before the database migration that adds it.
+        return (data || []).map(rowToPerson).filter((p) => !zodiacs || zodiacs.includes(p.zodiac));
       },
       // Returns true when the swipe creates a match.
+      // Returns true for a match, false otherwise, or 'limit' / 'pro_only' when the free plan stops the swipe.
       swipe: async (id, kind) => {
+        const blocked = swipeBlock(stateRef.current.plan, kind);
+        if (blocked) return blocked;
+        const before = stateRef.current.swipes;
         update((s) => ({
           swipes: {
             ...s.swipes,
@@ -552,12 +612,38 @@ export function AppProvider({ children }) {
           },
         }));
         const { data: matchId, error } = await supabase.rpc('swipe', { target: id, swipe_kind: kind === 'like' ? 'like' : kind });
-        if (error) { fail(error); return false; }
+        if (error) {
+          const code = /swipe_limit/.test(error.message) ? 'limit' : /pro_only/.test(error.message) ? 'pro_only' : null;
+          if (code) { update(() => ({ swipes: before })); loadPlan(); return code; }
+          fail(error);
+          return false;
+        }
+        update((s) => (s.plan ? { plan: { ...s.plan, swipes_used: s.plan.swipes_used + 1 } } : {}));
         if (matchId) {
           update((s) => ({ matchIds: { ...s.matchIds, [id]: matchId }, swipes: { ...s.swipes, matches: [...new Set([...s.swipes.matches, id])] } }));
           return true;
         }
         return false;
+      },
+      loadPlan,
+      // Pay with CheqPay: asks our server for a one-off account number for the Pro price.
+      startCheckout: () => callPayApi('/api/pro/checkout', { method: 'POST' }),
+      checkPayment: (paymentId) => callPayApi(`/api/pro/checkout?payment=${encodeURIComponent(paymentId)}`),
+      paymentStatus: async (paymentId) => {
+        const { data } = await supabase.from('payments').select('status, paid_at').eq('id', paymentId).maybeSingle();
+        return data;
+      },
+      adminUpdateSettings: async (v) => {
+        const { error } = await supabase.rpc('admin_update_settings', {
+          free_swipes: v.freeSwipes, free_trial_days: v.trialDays, pro_price_naira: v.price, pro_days: v.days,
+        });
+        if (error) return { error: friendlyError(error) };
+        await loadPlan();
+        return {};
+      },
+      adminGrantPro: async (username, days) => {
+        const { data, error } = await supabase.rpc('admin_grant_pro', { username: username.replace(/^@/, ''), days });
+        return error ? { error: friendlyError(error) } : { proUntil: data };
       },
       resetDeck: async () => {
         await supabase.from('swipes').delete().eq('swiper_id', meId()).eq('kind', 'pass');
@@ -612,7 +698,7 @@ export function AppProvider({ children }) {
 
       setTheme: (theme) => update(() => ({ theme })),
     };
-  }, [update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadPostsBy, loadPeople, remember, storePosts, toMessage, otherFor, addMessage]);
+  }, [update, toast, fail, loadPlan, loadFeed, loadTrending, loadTopic, loadTopics, loadFollowing, loadPostsBy, loadPeople, remember, storePosts, toMessage, otherFor, addMessage]);
 
   // ---------- derived values for screens ----------
   const value = useMemo(() => {
@@ -647,7 +733,7 @@ export function AppProvider({ children }) {
       .sort((a, b) => b.createdAt - a.createdAt);
 
     // A dating profile is ready once it has the basics and at least two photos.
-    const datingReady = !!(me.gender && me.interestedIn && me.orientation && me.photos.length >= 2);
+    const datingReady = !!(me.gender && me.interestedIn && me.zodiac && me.orientation && me.photos.length >= 2);
 
     return { ...actions, state, toastMsg, self, person, posts, datingReady };
   }, [actions, state, toastMsg]);

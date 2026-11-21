@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store.jsx';
-import { Logo, LogoMark } from '../components/Logo.jsx';
-import { Portrait } from '../components/Art.jsx';
-import { WELCOME_PHOTOS } from '../data/onboarding.js';
 import { TopBar } from '../components/ui.jsx';
 import { InstallButton } from '../components/Install.jsx';
 
@@ -25,46 +22,28 @@ export function Splash() {
     else navigate('/welcome', { replace: true });
   }, [minTimeDone, state.authReady, state.verified, state.onboarded, navigate]);
 
+  // Figma 2757:3614: a white screen with only the loading bar, a little below the middle.
   return (
-    <main className="screen center" style={{ gap: 90 }}>
-      <Logo size={110} />
-      <div style={{ width: 190, height: 6, borderRadius: 6, background: 'var(--line)', overflow: 'hidden' }} role="progressbar" aria-valuenow={progress} aria-label="Loading">
-        <div style={{ width: `${progress}%`, height: '100%', background: 'var(--green)', transition: 'width 0.12s linear' }} />
+    <main className="splash">
+      <div className="splash-bar" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Loading alignment">
+        <div style={{ width: `${progress}%` }} />
       </div>
     </main>
   );
 }
 
-// A collage tile: the photo, or a drawn placeholder if it can't load (offline, blocked, missing file).
-function WelcomePhoto({ photo, index, className }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <div className={`welcome-tile ${className}`}>
-      {failed
-        ? <Portrait person={{ id: `welcome-${index}`, name: ' ', hue: photo.hue }} />
-        : <img src={photo.src} alt={photo.alt} loading={index < 3 ? 'eager' : 'lazy'} onError={() => setFailed(true)} />}
-    </div>
-  );
-}
-
-// One welcome page: real people up top, then sign up or log in.
+// Figma 2758:4384: one page over a photo of a couple, with the logo, the tagline and the two buttons.
 export function Welcome() {
   const navigate = useNavigate();
-  const tiles = ['t1', 't2', 't3', 't4', 't5'];
   return (
-    <main className="screen welcome">
-      <div className="welcome-collage">
-        {WELCOME_PHOTOS.slice(0, tiles.length).map((p, i) => <WelcomePhoto key={p.src} photo={p} index={i} className={tiles[i]} />)}
-        <span className="welcome-badge" aria-hidden="true"><LogoMark size={44} /></span>
-      </div>
-      <div className="welcome-copy">
-        <h1 className="title">Align with your soulmate</h1>
-        <p className="subtitle">Share deep conversations with your soul tribe, and meet people who see the world the way you do.</p>
-      </div>
-      <div className="welcome-actions">
-        <button type="button" className="btn btn-primary btn-block" onClick={() => navigate('/signup')}>Create Account</button>
-        <button type="button" className="btn btn-outline btn-block" onClick={() => navigate('/login')}>Login</button>
-        <InstallButton />
+    <main className="welcome">
+      <img className="welcome-photo" src="./brand/welcome-couple.jpg" alt="" />
+      <div className="welcome-content">
+        <img className="welcome-logo" src="./brand/alignment-logo.png" alt="alignment" width="182" height="182" />
+        <p className="welcome-tagline">Create value, meet your soul tribe, align with your soul mate</p>
+        <button type="button" className="welcome-btn primary" onClick={() => navigate('/signup')}>Create Account</button>
+        <button type="button" className="welcome-btn outline" onClick={() => navigate('/login')}>Login</button>
+        <InstallButton className="welcome-install" />
       </div>
     </main>
   );

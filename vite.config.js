@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // Pages and public/ files the app needs offline (the built /assets files are added automatically).
-const PUBLIC_PRECACHE = ['index.html', 'iphone.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+const PUBLIC_PRECACHE = ['index.html', 'iphone.html', 'manifest.webmanifest', 'brand/welcome-couple.jpg', 'brand/alignment-logo.png', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 // Builds src/sw.js into dist/sw.js with the list of files to keep offline and a version that changes with them.
 function serviceWorker() {

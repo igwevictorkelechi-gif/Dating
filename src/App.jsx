@@ -13,6 +13,7 @@ import {
 import {
   Account, Appearance, ChangePassword, Help, Settings,
 } from './screens/Settings.jsx';
+import { AdminSettings, Pro } from './screens/Pro.jsx';
 
 function Loading() {
   return <main className="screen center"><p className="hint">Loading…</p></main>;
@@ -84,6 +85,8 @@ export default function App() {
             <Route path="/settings/password" element={<ChangePassword />} />
             <Route path="/settings/appearance" element={<Appearance />} />
             <Route path="/settings/help" element={<Help />} />
+            <Route path="/settings/admin" element={<AdminSettings />} />
+            <Route path="/pro" element={<Pro />} />
           </Route>
         </Route>
 
