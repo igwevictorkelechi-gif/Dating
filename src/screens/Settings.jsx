@@ -8,7 +8,8 @@ import { InstallButton } from '../components/Install.jsx';
 
 export function Settings() {
   const navigate = useNavigate();
-  const { logOut, deleteAccount, toast } = useApp();
+  const { state, logOut, deleteAccount, toast } = useApp();
+  const plan = state.plan;
   const [confirm, setConfirm] = useState(null);
 
   return (
@@ -16,6 +17,8 @@ export function Settings() {
       <main className="screen">
         <TopBar title="Settings" backTo="/home" />
         <div className="rows">
+          <Link to="/pro" className="row-link">alignment Pro <span className="row-note">{plan?.is_pro ? 'Active' : 'Upgrade'} <ChevronRight size={20} /></span></Link>
+          {plan?.is_admin && <Link to="/settings/admin" className="row-link">Admin <ChevronRight size={20} /></Link>}
           <Link to="/settings/account" className="row-link">Account <ChevronRight size={20} /></Link>
           <Link to="/settings/appearance" className="row-link">Appearance <ChevronRight size={20} /></Link>
           <Link to="/settings/help" className="row-link">Help and support <ChevronRight size={20} /></Link>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Check, ChevronDown, ChevronLeft, EllipsisVertical, Heart, ImagePlus, MapPin, Pencil, SendHorizontal, SlidersHorizontal, Star, X,
 } from 'lucide-react';
-import { ageFromDob, firstName, resizeImage, timeAgo, useApp } from '../store.jsx';
+import { ageFromDob, firstName, resizeImage, swipeBlock, swipesLeft, timeAgo, useApp } from '../store.jsx';
 import { INTERESTED_IN } from '../data/seed.js';
 import { Avatar, BottomNav, CheckRow, ChipGroup, DatingNav, Sheet } from '../components/ui.jsx';
 import { LogoMark } from '../components/Logo.jsx';
@@ -49,12 +49,22 @@ export function DatingStart() {
   );
 }
 
+// Free swipes left / Pro badge; tapping it opens alignment Pro.
+function PlanBadge() {
+  const { state } = useApp();
+  const plan = state.plan;
+  if (!plan) return null;
+  const left = swipesLeft(plan);
+  const label = plan.is_pro ? 'Pro' : plan.in_trial ? 'Free trial' : `${left} free swipe${left === 1 ? '' : 's'} left`;
+  return <Link to="/pro" className={`plan-badge ${plan.is_pro ? 'pro' : left === 0 ? 'out' : ''}`}>{plan.is_pro && <Star size={13} />}{label}</Link>;
+}
+
 function DatingHeader({ filters = true }) {
   const navigate = useNavigate();
   return (
-    <div className="topbar" style={{ padding: '0 20px' }}>
+    <div className="topbar" style={{ padding: '0 20px', position: 'relative' }}>
       <button type="button" className="icon-btn" aria-label="Back to home" onClick={() => navigate('/home')}><ChevronLeft size={30} /></button>
-      <LogoMark size={56} />
+      <div style={{ display: 'grid', justifyItems: 'center', gap: 2 }}><LogoMark size={48} /><PlanBadge /></div>
       {filters ? (
         <Link to="/dating/filters" className="icon-btn" aria-label="Filters"><SlidersHorizontal size={28} /></Link>
       ) : <span />}
@@ -149,6 +159,9 @@ export function Discover() {
 
   const decide = (kind) => {
     if (!top || busy.current) return;
+    // Out of free swipes (or a super like on the free plan): go to alignment Pro instead.
+    const blocked = swipeBlock(state.plan, kind);
+    if (blocked) { setDrag({ x: 0, y: 0, active: false }); navigate(`/pro?reason=${blocked}`); return; }
     busy.current = true;
     setLeaving(kind === 'pass' ? 'left' : 'right');
     const swiped = swipe(top.id, kind);
@@ -157,8 +170,14 @@ export function Discover() {
       setLeaving(null);
       setDrag({ x: 0, y: 0, active: false });
       busy.current = false;
+      const result = await swiped;
+      if (result === 'limit' || result === 'pro_only') {
+        setDeck((d) => [top, ...d]); // the server said no: put the card back
+        navigate(`/pro?reason=${result}`);
+        return;
+      }
       if (kind === 'super') toast(`You super liked ${firstName(top)} ⭐`);
-      if (await swiped) navigate(`/dating/match/${top.id}`);
+      if (result) navigate(`/dating/match/${top.id}`);
     }, 260);
   };
 

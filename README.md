@@ -18,6 +18,8 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 
 **iPhone preview:** open `/iphone.html` (e.g. http://localhost:5173/iphone.html) to use the app inside an iPhone 15 Pro frame. Handy for demos on a computer; on a phone the frame drops away.
 
+**Pro and payments:** free swipes, an optional free trial and paid Pro via CheqPay bank transfer. Admins set the limits and price in Settings → Admin. Setup: [PAYMENTS-SETUP.md](PAYMENTS-SETUP.md).
+
 **Backend:** Supabase (accounts, database, file storage, live chat). See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) for the dashboard steps to finish before launch.
 
 **Hosting on Vercel:** the repo is linked to a Vercel project; every push builds and deploys automatically. `vercel.json` sets the build and the caching/security headers.
@@ -31,7 +33,7 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 | Onboarding | Splash, one welcome page with a photo collage (photos set in `src/data/onboarding.js`), create account, login, OTP, then name/username/birthday and follow five people |
 | Dating profile setup | Required the first time you open Dating: gender & who you're into, orientation, spiritual & political views, causes, smoking & drinking, hobbies, conspiracy-theory voice recording, photo upload (at least 2) |
 | Profile | Photo, name & age, location, work, bio and what you're looking for; posts / followers / following; profile-strength meter with the next thing to add; Posts, Photos (grid + viewer) and About tabs (basics, beliefs, causes, lifestyle, hobbies, voice note); Edit profile & Preview on yours, Follow and Like/Message on other people's |
-| Social | Home feed with Trending and Latest tabs, trending #topics, keyword flagging, write-a-post box, search, notifications, create post (notes, images with framing/crop, video), likes & comments |
+| Social | Home feed with Trending (everyone) and For you (people you follow) tabs, trending #topics, keyword flagging, write-a-post box, search, notifications, create post (notes, images with framing/crop, video), likes & comments |
 | Dating | Swipe deck (drag, buttons or ← → ↑ keys), profile details under the card, super like, filters (who & age range), "It's aligning!" match screen, chats list, chat with pictures, close/report chat, people you liked, your dating profile preview with edit links |
 | Settings | Account, change password, light/dark appearance, help & support, log out, delete account |
 
@@ -43,11 +45,13 @@ src/
   App.jsx             all routes and sign-in guards
   store.jsx           app state and actions, backed by Supabase
   lib/supabase.js     Supabase client and file-upload helpers
+  lib/trending.js     trending score, #topics and keyword rules
   styles.css          design tokens (sampled from Figma) and shared styles
   data/seed.js        option lists (hobbies, causes, …)
   components/         Logo, generated artwork, nav bars, chips, dialogs, post card
   screens/            Auth, Setup, Social, Profile, Dating, Settings
 supabase/migrations/  database schema, security rules, storage and realtime setup
+api/                  Vercel Functions: CheqPay checkout and webhook (server-only secrets)
 ```
 
 ## Before launch

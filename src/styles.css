@@ -555,3 +555,30 @@ input.dual::-moz-range-thumb {
 .welcome-copy .subtitle { margin: 0 auto; max-width: 320px; }
 .welcome-actions { display: grid; gap: 12px; justify-items: center; margin-top: auto; padding-top: 24px; }
 .welcome-actions .btn { max-width: 360px; }
+
+/* ---------- Plan badge (dating header) ---------- */
+.plan-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; text-decoration: none; color: var(--green); background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+.plan-badge.out { color: #fff; background: var(--orange); border-color: var(--orange); }
+.plan-badge.pro { color: #fff; background: var(--green); border-color: var(--green); }
+
+/* ---------- alignment Pro ---------- */
+.row-note { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.screen.pro .pro-hero { display: grid; justify-items: center; text-align: center; gap: 8px; margin: 8px 0 18px; }
+.pro-hero .title { margin: 0; }
+.pro-hero .subtitle { margin: 0; max-width: 320px; }
+.pro-mark { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--green), var(--orange)); }
+.pro-benefits { list-style: none; margin: 0; padding: 14px 16px; display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.pro-benefits li { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500; }
+.pro-benefits svg { color: var(--green); flex: none; }
+.pro-price { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 22px 0 6px; }
+.pro-price strong { font-size: 34px; font-weight: 700; }
+.pro-price span { color: var(--muted); }
+.cheqpay-btn { font-size: 16px; }
+.pay-box { margin-top: 18px; padding: 16px; border: 1.5px solid var(--green); border-radius: 14px; background: var(--surface); }
+.pay-title { margin: 0 0 10px; font-weight: 700; }
+.pay-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.pay-row span { color: var(--muted); font-size: 13px; }
+.pay-row strong { font-size: 15px; text-align: right; overflow-wrap: anywhere; }
+.pay-row strong.big { font-size: 22px; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+.pay-row .icon-btn { color: var(--green); }
+.admin-form { display: grid; gap: 4px; }

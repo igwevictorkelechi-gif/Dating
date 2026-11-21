@@ -8,7 +8,8 @@ import PostCard from '../components/PostCard.jsx';
 import Cropper from '../components/Cropper.jsx';
 import { extractTags, localTopics, matchesTopic, trendScore } from '../lib/trending.js';
 
-const FEED_TABS = [['trending', 'Trending'], ['latest', 'Latest']];
+// Trending: everyone's posts, ranked. For you: only people you follow, newest first.
+const FEED_TABS = [['trending', 'Trending'], ['foryou', 'For you']];
 const QUICK_MAX = 500;
 
 // Write a text post straight from the feed. #topics in it can trend.
@@ -56,9 +57,10 @@ function QuickPost({ onPosted }) {
 }
 
 export function Home() {
-  const { posts, state, loadFeed, loadTrending, loadTopic, loadTopics, searchPeople } = useApp();
+  const { posts, state, loadFeed, loadTrending, loadTopic, loadTopics, loadFollowing, searchPeople } = useApp();
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'latest' ? 'latest' : 'trending';
+  const tab = params.get('tab') === 'foryou' ? 'foryou' : 'trending';
+  const [refresh, setRefresh] = useState(0);
   const topic = params.get('topic') || '';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -71,7 +73,7 @@ export function Home() {
   const setView = (next) => {
     const merged = { tab, topic, ...next };
     const out = {};
-    if (merged.tab === 'latest') out.tab = 'latest';
+    if (merged.tab === 'foryou') out.tab = 'foryou';
     if (merged.topic) out.topic = merged.topic;
     setParams(out, { replace: true });
   };
@@ -82,9 +84,10 @@ export function Home() {
     const work = [loadFeed(), loadTopics().then((t) => { if (live) setServerTopics(t); })];
     if (topic) work.push(loadTopic(topic));
     if (tab === 'trending') work.push(loadTrending(topic).then((ids) => { if (live) setRankedIds(ids); }));
+    else work.push(loadFollowing());
     Promise.all(work).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [tab, topic, loadFeed, loadTrending, loadTopic, loadTopics]);
+  }, [tab, topic, refresh, loadFeed, loadTrending, loadTopic, loadTopics, loadFollowing]);
 
   // Search as you type, after a short pause.
   useEffect(() => {
@@ -95,14 +98,17 @@ export function Home() {
 
   const feed = useMemo(() => {
     const shown = posts.filter((p) => matchesTopic(p, topic));
-    if (tab === 'latest') return shown; // newest first
+    if (tab === 'foryou') {
+      const followed = new Set(state.following);
+      return shown.filter((p) => followed.has(p.authorId)); // newest first
+    }
     if (rankedIds) {
       const byId = new Map(shown.map((p) => [p.id, p]));
       return rankedIds.map((id) => byId.get(id)).filter(Boolean);
     }
     const now = Date.now();
     return shown.filter((p) => !p.flagged).sort((a, b) => trendScore(b, now) - trendScore(a, now));
-  }, [posts, tab, topic, rankedIds]);
+  }, [posts, tab, topic, rankedIds, state.following]);
 
   const topics = useMemo(() => {
     const list = (serverTopics && serverTopics.length ? serverTopics : localTopics(posts)).map((t) => t.topic);
@@ -158,11 +164,14 @@ export function Home() {
             </div>
           )}
         </div>
-        <QuickPost onPosted={() => setView({ tab: 'latest', topic: '' })} />
+        <QuickPost onPosted={() => { setView({ tab: 'trending', topic: '' }); setRefresh((n) => n + 1); }} />
         {loading && feed.length === 0 && <p className="empty">Loading your feed…</p>}
         {!loading && feed.length === 0 && (
           <div className="empty">
-            {topic ? <>No posts about {topic} yet.</> : <>Nothing here yet. Share the first post, or search for people to follow.</>}
+            {tab === 'foryou' && state.following.length === 0
+              ? <>Follow people to see their posts here. Search for someone above, or tap Follow on a post in Trending.</>
+              : topic ? <>No posts about {topic} yet.</>
+                : tab === 'foryou' ? <>The people you follow haven’t posted yet.</> : <>Nothing here yet. Share the first post, or search for people to follow.</>}
             <div style={{ marginTop: 12 }}><Link to="/post/new" className="btn btn-primary btn-sm">Create a post</Link></div>
           </div>
         )}

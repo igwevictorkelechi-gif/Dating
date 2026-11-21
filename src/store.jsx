@@ -53,6 +53,7 @@ const INITIAL = {
   chats: {}, // other person's id -> messages
   closedChats: [],
   notifications: [],
+  plan: null, // from my_plan(): free swipes, trial, Pro, admin. null = unknown (no limits shown)
   ...loadPrefs(),
 };
 
@@ -89,6 +90,36 @@ const COLUMN_FOR = {
   drink: 'drink', hobbies: 'hobbies', audio: 'audio_url', photos: 'photos', bio: 'bio', avatar: 'avatar_url',
   location: 'location', job: 'job', lookingFor: 'looking_for',
 };
+
+// Why the free plan stops a swipe, or null if it's allowed.
+export function swipeBlock(plan, kind) {
+  if (!plan || plan.is_pro || plan.in_trial) return null;
+  if (plan.swipes_used >= plan.free_swipes) return 'limit';
+  if (kind === 'super') return 'pro_only';
+  return null;
+}
+
+// Free swipes left, or null when unlimited (Pro, free trial, or plan not loaded).
+export function swipesLeft(plan) {
+  if (!plan || plan.is_pro || plan.in_trial) return null;
+  return Math.max(0, plan.free_swipes - plan.swipes_used);
+}
+
+// Calls alignment's own server (Vercel functions in /api) as the signed-in user.
+async function callPayApi(path, init = {}) {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const res = await fetch(path, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token || ''}` },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: body.error || 'Payments aren’t available right now. Please try again later.' };
+    return body;
+  } catch {
+    return { error: 'Can’t reach alignment right now. Check your connection and try again.' };
+  }
+}
 
 function friendlyError(error) {
   const msg = error?.message || String(error || '');
@@ -250,6 +281,14 @@ export function AppProvider({ children }) {
     return () => sub.subscription.unsubscribe();
   }, [bootstrap, update, fail]);
 
+  // ---------- plan (free swipes, trial, Pro) ----------
+  const loadPlan = useCallback(async () => {
+    const { data, error } = await supabase.rpc('my_plan');
+    update(() => ({ plan: error ? null : data }));
+    return error ? null : data;
+  }, [update]);
+  useEffect(() => { if (state.myId) loadPlan(); }, [state.myId, loadPlan]);
+
   // ---------- realtime: chat, matches, notifications ----------
   useEffect(() => {
     if (!state.myId) return undefined;
@@ -303,6 +342,15 @@ export function AppProvider({ children }) {
     return (data || []).map((r) => r.id);
   }, [storePosts]);
 
+  // Newest posts from the people you follow.
+  const loadFollowing = useCallback(async () => {
+    const ids = stateRef.current.following;
+    if (!ids.length) return;
+    const { data } = await supabase.from('posts').select(POST_SELECT).in('author_id', ids.slice(0, 200))
+      .order('created_at', { ascending: false }).limit(50);
+    storePosts(data || []);
+  }, [storePosts]);
+
   // Newest posts about one '#topic' or keyword.
   const loadTopic = useCallback(async (topic) => {
     const word = topic.replace(/[%_\\]/g, '');
@@ -333,7 +381,7 @@ export function AppProvider({ children }) {
     };
 
     return {
-      update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadPostsBy, loadPeople, remember,
+      update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadFollowing, loadPostsBy, loadPeople, remember,
 
       // ----- auth -----
       signUp: async (email, password) => {
@@ -542,7 +590,11 @@ export function AppProvider({ children }) {
         return (data || []).map(rowToPerson);
       },
       // Returns true when the swipe creates a match.
+      // Returns true for a match, false otherwise, or 'limit' / 'pro_only' when the free plan stops the swipe.
       swipe: async (id, kind) => {
+        const blocked = swipeBlock(stateRef.current.plan, kind);
+        if (blocked) return blocked;
+        const before = stateRef.current.swipes;
         update((s) => ({
           swipes: {
             ...s.swipes,
@@ -552,12 +604,38 @@ export function AppProvider({ children }) {
           },
         }));
         const { data: matchId, error } = await supabase.rpc('swipe', { target: id, swipe_kind: kind === 'like' ? 'like' : kind });
-        if (error) { fail(error); return false; }
+        if (error) {
+          const code = /swipe_limit/.test(error.message) ? 'limit' : /pro_only/.test(error.message) ? 'pro_only' : null;
+          if (code) { update(() => ({ swipes: before })); loadPlan(); return code; }
+          fail(error);
+          return false;
+        }
+        update((s) => (s.plan ? { plan: { ...s.plan, swipes_used: s.plan.swipes_used + 1 } } : {}));
         if (matchId) {
           update((s) => ({ matchIds: { ...s.matchIds, [id]: matchId }, swipes: { ...s.swipes, matches: [...new Set([...s.swipes.matches, id])] } }));
           return true;
         }
         return false;
+      },
+      loadPlan,
+      // Pay with CheqPay: asks our server for a one-off account number for the Pro price.
+      startCheckout: () => callPayApi('/api/pro/checkout', { method: 'POST' }),
+      checkPayment: (paymentId) => callPayApi(`/api/pro/checkout?payment=${encodeURIComponent(paymentId)}`),
+      paymentStatus: async (paymentId) => {
+        const { data } = await supabase.from('payments').select('status, paid_at').eq('id', paymentId).maybeSingle();
+        return data;
+      },
+      adminUpdateSettings: async (v) => {
+        const { error } = await supabase.rpc('admin_update_settings', {
+          free_swipes: v.freeSwipes, free_trial_days: v.trialDays, pro_price_naira: v.price, pro_days: v.days,
+        });
+        if (error) return { error: friendlyError(error) };
+        await loadPlan();
+        return {};
+      },
+      adminGrantPro: async (username, days) => {
+        const { data, error } = await supabase.rpc('admin_grant_pro', { username: username.replace(/^@/, ''), days });
+        return error ? { error: friendlyError(error) } : { proUntil: data };
       },
       resetDeck: async () => {
         await supabase.from('swipes').delete().eq('swiper_id', meId()).eq('kind', 'pass');
@@ -612,7 +690,7 @@ export function AppProvider({ children }) {
 
       setTheme: (theme) => update(() => ({ theme })),
     };
-  }, [update, toast, fail, loadFeed, loadTrending, loadTopic, loadTopics, loadPostsBy, loadPeople, remember, storePosts, toMessage, otherFor, addMessage]);
+  }, [update, toast, fail, loadPlan, loadFeed, loadTrending, loadTopic, loadTopics, loadFollowing, loadPostsBy, loadPeople, remember, storePosts, toMessage, otherFor, addMessage]);
 
   // ---------- derived values for screens ----------
   const value = useMemo(() => {
