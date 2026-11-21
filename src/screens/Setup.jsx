@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Mic, Pause, Play, Plus, RotateCcw, Square, X, Check } from 'lucide-react';
 import { ageFromDob, resizeImage, useApp } from '../store.jsx';
 import {
-  CAUSES, GENDERS, HABITS, HOBBIES, INTERESTED_IN, ORIENTATIONS, POLITICAL, SPIRITUAL,
+  CAUSES, GENDERS, HABITS, HOBBIES, INTERESTED_IN, ORIENTATIONS, POLITICAL, SPIRITUAL, ZODIAC_SIGNS, zodiacFor, zodiacLabel,
 } from '../data/seed.js';
 import { Avatar, CheckRow, ChipGroup, StepScreen } from '../components/ui.jsx';
 
@@ -85,12 +85,15 @@ export function SetupDatingBasics() {
   const next = useStepNav('dating');
   const [gender, setGender] = useState(state.me.gender);
   const [interestedIn, setInterestedIn] = useState(state.me.interestedIn);
+  // Pre-filled from the birthday given at sign-up; people can still change it.
+  const fromBirthday = zodiacFor(state.me.dob?.d, state.me.dob?.m);
+  const [zodiac, setZodiac] = useState(state.me.zodiac || fromBirthday);
   return (
     <StepScreen
       title="Create dating profile"
-      canNext={!!(gender && interestedIn)}
+      canNext={!!(gender && interestedIn && zodiac)}
       onNext={async () => {
-        if ((await saveProfile({ gender, interestedIn })).error) return;
+        if ((await saveProfile({ gender, interestedIn, zodiac })).error) return;
         setFilters({ ...state.filters, seeking: interestedIn });
         next();
       }}
@@ -100,6 +103,9 @@ export function SetupDatingBasics() {
       <ChipGroup options={GENDERS} value={gender} onChange={setGender} />
       <p className="label">Who are you interested in?</p>
       <ChipGroup options={INTERESTED_IN} value={interestedIn} onChange={setInterestedIn} />
+      <p className="label">Zodiac sign</p>
+      {fromBirthday && <p className="hint" style={{ marginTop: -6 }}>From your birthday you’re {zodiacLabel(fromBirthday)}. Change it if that’s not right.</p>}
+      <ChipGroup options={ZODIAC_SIGNS} value={zodiac} onChange={setZodiac} />
     </StepScreen>
   );
 }

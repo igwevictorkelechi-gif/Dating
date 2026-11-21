@@ -9,17 +9,20 @@ import { extractTags } from './lib/trending.js';
 const PREFS_KEY = 'alignment:prefs'; // theme and dating filters stay on this device
 
 const EMPTY_PROFILE = {
-  firstName: '', lastName: '', username: '', gender: '', dob: { d: '', m: '', y: '' }, interestedIn: '',
+  firstName: '', lastName: '', username: '', gender: '', dob: { d: '', m: '', y: '' }, interestedIn: '', zodiac: '',
   orientation: '', spiritual: '', political: '', causes: [], smoke: '', drink: '',
   hobbies: [], audio: null, photos: [], bio: '', avatar: null,
   location: '', job: '', lookingFor: '', age: null, hue: 110,
 };
 
+const DEFAULT_FILTERS = { seeking: 'Both', minAge: 18, maxAge: 45, zodiacs: [] }; // zodiacs: [] = any sign
+
 function loadPrefs() {
   try {
-    return { filters: { seeking: 'Both', minAge: 18, maxAge: 45 }, theme: 'light', ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+    return { theme: 'light', ...saved, filters: { ...DEFAULT_FILTERS, ...(saved.filters || {}) } };
   } catch {
-    return { filters: { seeking: 'Both', minAge: 18, maxAge: 45 }, theme: 'light' };
+    return { filters: DEFAULT_FILTERS, theme: 'light' };
   }
 }
 
@@ -57,14 +60,16 @@ const INITIAL = {
   ...loadPrefs(),
 };
 
-const PROFILE_COLUMNS = 'id, username, first_name, last_name, bio, gender, age, interested_in, orientation, spiritual, political, causes, smoke, drink, hobbies, location, job, looking_for, avatar_url, photos, audio_url, hue, is_creator, onboarded, created_at';
+// Every column: profiles hold nothing private (birthdays live in profile_private), and new columns such as zodiac
+// come through without the app breaking before their migration is applied.
+const PROFILE_COLUMNS = '*';
 
 export function rowToPerson(r) {
   const name = [r.first_name, r.last_name].filter(Boolean).join(' ') || r.username || 'New member';
   return {
     id: r.id, name, username: r.username || 'new_member', age: r.age, gender: r.gender, location: r.location,
     job: r.job, lookingFor: r.looking_for, spiritual: r.spiritual, political: r.political, orientation: r.orientation,
-    interestedIn: r.interested_in, causes: r.causes || [], hobbies: r.hobbies || [], smoke: r.smoke, drink: r.drink,
+    interestedIn: r.interested_in, zodiac: r.zodiac || '', causes: r.causes || [], hobbies: r.hobbies || [], smoke: r.smoke, drink: r.drink,
     bio: r.bio, avatar: r.avatar_url || r.photos?.[0] || null, photos: r.photos || [], audio: r.audio_url,
     hue: r.hue ?? 120, creator: r.is_creator, followers: 0, following: 0,
   };
@@ -76,7 +81,7 @@ function rowToMe(r, dob) {
     ...EMPTY_PROFILE,
     firstName: r.first_name || '', lastName: r.last_name || '', username: r.username || '', gender: r.gender || '',
     dob: dob ? { d: String(Number(d)), m: String(Number(m)), y } : { d: '', m: '', y: '' },
-    interestedIn: r.interested_in || '', orientation: r.orientation || '', spiritual: r.spiritual || '',
+    interestedIn: r.interested_in || '', zodiac: r.zodiac || '', orientation: r.orientation || '', spiritual: r.spiritual || '',
     political: r.political || '', causes: r.causes || [], smoke: r.smoke || '', drink: r.drink || '',
     hobbies: r.hobbies || [], audio: r.audio_url, photos: r.photos || [], bio: r.bio || '', avatar: r.avatar_url,
     location: r.location || '', job: r.job || '', lookingFor: r.looking_for || '', age: r.age, hue: r.hue ?? 110,
@@ -85,7 +90,7 @@ function rowToMe(r, dob) {
 
 // camelCase profile fields -> database columns
 const COLUMN_FOR = {
-  firstName: 'first_name', lastName: 'last_name', username: 'username', gender: 'gender', interestedIn: 'interested_in',
+  firstName: 'first_name', lastName: 'last_name', username: 'username', gender: 'gender', interestedIn: 'interested_in', zodiac: 'zodiac',
   orientation: 'orientation', spiritual: 'spiritual', political: 'political', causes: 'causes', smoke: 'smoke',
   drink: 'drink', hobbies: 'hobbies', audio: 'audio_url', photos: 'photos', bio: 'bio', avatar: 'avatar_url',
   location: 'location', job: 'job', lookingFor: 'looking_for',
@@ -584,10 +589,13 @@ export function AppProvider({ children }) {
       // ----- dating -----
       discover: async () => {
         const f = stateRef.current.filters;
-        const { data, error } = await supabase.rpc('discover', { seeking: f.seeking, min_age: f.minAge, max_age: f.maxAge === 60 ? 99 : f.maxAge, lim: 30 });
+        const zodiacs = f.zodiacs?.length ? f.zodiacs : null;
+        const args = { seeking: f.seeking, min_age: f.minAge, max_age: f.maxAge === 60 ? 99 : f.maxAge, lim: 30 };
+        const { data, error } = await supabase.rpc('discover', zodiacs ? { ...args, zodiacs } : args);
         if (error) { fail(error); return []; }
         remember(data || []);
-        return (data || []).map(rowToPerson);
+        // Also filtered here, so the zodiac filter holds even before the database migration that adds it.
+        return (data || []).map(rowToPerson).filter((p) => !zodiacs || zodiacs.includes(p.zodiac));
       },
       // Returns true when the swipe creates a match.
       // Returns true for a match, false otherwise, or 'limit' / 'pro_only' when the free plan stops the swipe.
@@ -725,7 +733,7 @@ export function AppProvider({ children }) {
       .sort((a, b) => b.createdAt - a.createdAt);
 
     // A dating profile is ready once it has the basics and at least two photos.
-    const datingReady = !!(me.gender && me.interestedIn && me.orientation && me.photos.length >= 2);
+    const datingReady = !!(me.gender && me.interestedIn && me.zodiac && me.orientation && me.photos.length >= 2);
 
     return { ...actions, state, toastMsg, self, person, posts, datingReady };
   }, [actions, state, toastMsg]);

@@ -24,7 +24,7 @@ The server code is in `api/` (Vercel Functions). The database side is in `supaba
 
 ### 1. Run the database migrations
 
-In the Supabase SQL Editor, run the migrations that haven't been applied yet, in order: `..._08_finish.sql`, `..._09_trending.sql` and `..._10_pro.sql`. Then make yourself an admin (use your username):
+In the Supabase SQL Editor, run the migrations that haven't been applied yet, in order: `..._08_finish.sql`, `..._09_trending.sql`, `..._10_pro.sql` and `..._11_zodiac.sql`. Then make yourself an admin (use your username):
 
 ```sql
 insert into public.memberships (user_id, is_admin)

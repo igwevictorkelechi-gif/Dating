@@ -31,10 +31,10 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 | Area | Screens |
 | --- | --- |
 | Onboarding | Splash (loading bar), one welcome page over a photo of a couple with the logo, Create Account and Login (Figma frames 2757:3614 and 2758:4384), create account, login, OTP, then name/username/birthday and follow five people |
-| Dating profile setup | Required the first time you open Dating: gender & who you're into, orientation, spiritual & political views, causes, smoking & drinking, hobbies, conspiracy-theory voice recording, photo upload (at least 2) |
+| Dating profile setup | Required the first time you open Dating: gender, who you're into & zodiac sign (pre-filled from the birthday), orientation, spiritual & political views, causes, smoking & drinking, hobbies, conspiracy-theory voice recording, photo upload (at least 2) |
 | Profile | Photo, name & age, location, work, bio and what you're looking for; posts / followers / following; profile-strength meter with the next thing to add; Posts, Photos (grid + viewer) and About tabs (basics, beliefs, causes, lifestyle, hobbies, voice note); Edit profile & Preview on yours, Follow and Like/Message on other people's |
 | Social | Home feed with Trending (everyone) and For you (people you follow) tabs, trending #topics, keyword flagging, write-a-post box, search, notifications, create post (notes, images with framing/crop, video), likes & comments |
-| Dating | Swipe deck (drag, buttons or ← → ↑ keys), profile details under the card, super like, filters (who & age range), "It's aligning!" match screen, chats list, chat with pictures, close/report chat, people you liked, your dating profile preview with edit links |
+| Dating | Swipe deck (drag, buttons or ← → ↑ keys), profile details under the card, super like, filters (who, age range & zodiac signs), "It's aligning!" match screen, chats list, chat with pictures, close/report chat, people you liked, your dating profile preview with edit links |
 | Settings | Account, change password, light/dark appearance, help & support, log out, delete account |
 
 ## Project layout

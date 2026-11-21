@@ -4,7 +4,7 @@ import {
   Check, ChevronDown, ChevronLeft, EllipsisVertical, Heart, ImagePlus, MapPin, Pencil, SendHorizontal, SlidersHorizontal, Star, X,
 } from 'lucide-react';
 import { ageFromDob, firstName, resizeImage, swipeBlock, swipesLeft, timeAgo, useApp } from '../store.jsx';
-import { INTERESTED_IN } from '../data/seed.js';
+import { INTERESTED_IN, ZODIAC_SIGNS, zodiacLabel } from '../data/seed.js';
 import { Avatar, BottomNav, CheckRow, ChipGroup, DatingNav, Sheet } from '../components/ui.jsx';
 import { LogoMark } from '../components/Logo.jsx';
 import { Portrait } from '../components/Art.jsx';
@@ -18,7 +18,7 @@ export function DatingStart() {
   const me = state.me;
   useEffect(() => { if (datingReady) navigate('/dating', { replace: true }); }, [datingReady, navigate]);
   const steps = [
-    ['Gender & who you’re into', !!(me.gender && me.interestedIn)],
+    ['Gender, who you’re into & zodiac sign', !!(me.gender && me.interestedIn && me.zodiac)],
     ['Orientation', !!me.orientation],
     ['Beliefs, causes & lifestyle', !!(me.spiritual && me.political)],
     ['Hobbies', me.hobbies.length > 0],
@@ -88,7 +88,7 @@ function PhotoCard({ person, photo, style, handlers, stamp }) {
       <div style={{ position: 'absolute', left: 16, right: 16, bottom: 16, color: '#fff', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
         <div>
           <div style={{ fontWeight: 600, fontSize: 18 }}>{person.name}{person.age ? `, ${person.age}` : ''}</div>
-          <div style={{ fontSize: 14, marginTop: 4 }}>{person.spiritual}</div>
+          <div style={{ fontSize: 14, marginTop: 4 }}>{[person.spiritual, zodiacLabel(person.zodiac)].filter(Boolean).join(' · ')}</div>
         </div>
         {person.location && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 13, border: '1px solid rgba(255,255,255,0.7)', borderRadius: 6, padding: '4px 6px', background: 'rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
@@ -119,6 +119,7 @@ export function DatingDetails({ person, audio }) {
     <div style={{ padding: '4px 30px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
         {person.gender && <StaticChip label={person.gender} />}
+        {person.zodiac && <StaticChip label={zodiacLabel(person.zodiac)} />}
         {person.orientation && <CheckRow label={person.orientation} selected onClick={() => {}} />}
       </div>
       {person.political && (<><p style={section}>Political view</p><div className="chips"><StaticChip label={person.political} /></div></>)}
@@ -266,7 +267,7 @@ export function Discover() {
 export function Filters() {
   const navigate = useNavigate();
   const { state, setFilters, toast } = useApp();
-  const [f, setF] = useState(state.filters);
+  const [f, setF] = useState({ ...state.filters, zodiacs: state.filters.zodiacs || [] });
   const MIN = 18;
   const MAX = 60;
   const pct = (v) => ((v - MIN) / (MAX - MIN)) * 100;
@@ -296,6 +297,12 @@ export function Filters() {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>
           <span>{f.minAge}</span><span>{f.maxAge}{f.maxAge === MAX ? '+' : ''}</span>
         </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 30 }}>
+          <p className="label" style={{ margin: 0 }}>Zodiac signs</p>
+          {f.zodiacs.length > 0 && <button type="button" className="link-btn" style={{ padding: 0 }} onClick={() => setF({ ...f, zodiacs: [] })}>Any sign</button>}
+        </div>
+        <p className="hint" style={{ margin: '4px 0 12px' }}>{f.zodiacs.length ? `Showing ${f.zodiacs.length === 1 ? f.zodiacs[0] : `${f.zodiacs.length} signs`} only.` : 'Any sign. Pick one or more to narrow it down.'}</p>
+        <ChipGroup options={ZODIAC_SIGNS} value={f.zodiacs} onChange={(zodiacs) => setF({ ...f, zodiacs })} />
         <div className="grow" />
         <button type="button" className="btn btn-primary btn-block" onClick={apply}>Apply filters</button>
       </main>
@@ -555,11 +562,11 @@ export function MyDatingProfile() {
   const { state, self } = useApp();
   const me = state.me;
   const card = {
-    ...self, age: ageFromDob(me.dob), location: me.location, spiritual: me.spiritual, gender: me.gender, orientation: me.orientation,
+    ...self, age: ageFromDob(me.dob), location: me.location, spiritual: me.spiritual, gender: me.gender, orientation: me.orientation, zodiac: me.zodiac,
     political: me.political, hobbies: me.hobbies, causes: me.causes, smoke: me.smoke, drink: me.drink,
   };
   const edits = [
-    ['profile', 'Name & birthday'], ['dating', 'Gender & who you’re into'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs & habits'],
+    ['profile', 'Name & birthday'], ['dating', 'Gender, who you’re into & zodiac'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs & habits'],
     ['hobbies', 'Hobbies'], ['audio', 'Conspiracy theory'], ['photos', 'Pictures'],
   ];
   return (

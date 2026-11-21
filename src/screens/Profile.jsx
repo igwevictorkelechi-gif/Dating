@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Briefcase, Cake, Camera, ChevronLeft, ChevronRight, Cigarette, Eye, HeartHandshake, ImagePlus, Images, Info,
-  Landmark, MapPin, MessageCircle, NotebookPen, Pencil, Settings, Sparkles, StickyNote, UserCheck, UserPlus, Users,
+  Landmark, MapPin, MessageCircle, NotebookPen, Pencil, Settings, Sparkles, Star, StickyNote, UserCheck, UserPlus, Users,
   Video, Wine, X,
 } from 'lucide-react';
 import { ageFromDob, firstName, resizeImage, useApp } from '../store.jsx';
-import { LOOKING_FOR } from '../data/seed.js';
+import { LOOKING_FOR, zodiacLabel } from '../data/seed.js';
 import { Avatar, BottomNav, ChipGroup, Sheet, TopBar } from '../components/ui.jsx';
 import { Portrait, Scene } from '../components/Art.jsx';
 import PostCard from '../components/PostCard.jsx';
@@ -237,6 +237,7 @@ function ProfileView({ profile, isMe }) {
               <InfoRow icon={Users} label="Gender" value={profile.gender} />
               <InfoRow icon={HeartHandshake} label="Interested in" value={profile.interestedIn} />
               <InfoRow icon={Sparkles} label="Orientation" value={profile.orientation} />
+              <InfoRow icon={Star} label="Zodiac" value={zodiacLabel(profile.zodiac)} />
               <InfoRow icon={MapPin} label="Location" value={profile.location} />
               <InfoRow icon={Briefcase} label="Work" value={profile.job} />
             </Section>
@@ -350,7 +351,7 @@ export function EditProfile() {
 
   const back = '&back=/profile/edit';
   const datingLinks = [
-    ['profile', 'Name & birthday'], ['dating', 'Gender & who you’re into'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs, causes & lifestyle'],
+    ['profile', 'Name & birthday'], ['dating', 'Gender, who you’re into & zodiac'], ['orientation', 'Orientation'], ['beliefs', 'Beliefs, causes & lifestyle'],
     ['hobbies', 'Hobbies'], ['audio', 'Voice note'], ['photos', 'Photos'],
   ];
 
