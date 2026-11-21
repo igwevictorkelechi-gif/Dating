@@ -30,7 +30,7 @@ Routing uses URL hashes (`/#/home`), so the `dist/` folder works on GitHub Pages
 
 | Area | Screens |
 | --- | --- |
-| Onboarding | Splash, one welcome page with a photo collage (photos set in `src/data/onboarding.js`), create account, login, OTP, then name/username/birthday and follow five people |
+| Onboarding | Splash (loading bar), one welcome page over a photo of a couple with the logo, Create Account and Login (Figma frames 2757:3614 and 2758:4384), create account, login, OTP, then name/username/birthday and follow five people |
 | Dating profile setup | Required the first time you open Dating: gender & who you're into, orientation, spiritual & political views, causes, smoking & drinking, hobbies, conspiracy-theory voice recording, photo upload (at least 2) |
 | Profile | Photo, name & age, location, work, bio and what you're looking for; posts / followers / following; profile-strength meter with the next thing to add; Posts, Photos (grid + viewer) and About tabs (basics, beliefs, causes, lifestyle, hobbies, voice note); Edit profile & Preview on yours, Follow and Like/Message on other people's |
 | Social | Home feed with Trending (everyone) and For you (people you follow) tabs, trending #topics, keyword flagging, write-a-post box, search, notifications, create post (notes, images with framing/crop, video), likes & comments |
@@ -58,6 +58,6 @@ api/                  Vercel Functions: CheqPay checkout and webhook (server-onl
 
 - **Finish the Supabase steps** in [SUPABASE-SETUP.md](SUPABASE-SETUP.md): run the last SQL file (Delete account), set the Site URL, put the code in the sign-up email, and connect your own email sender so emails reach everyone.
 - **Sign-up is by email.** Phone-number sign-up needs an SMS provider (paid) and can be added later.
-- **Artwork.** The logo, onboarding illustrations and photo placeholders are redrawn in code because the Figma plan's API limit blocked exporting the originals. Drop the exported files into `public/` and swap them in `src/components/Logo.jsx` and `src/components/Art.jsx`.
+- **Artwork.** The welcome photo and the full logo are the exported Figma files in `public/brand/`. The small logo mark in headers and the photo placeholders are still redrawn in code (`src/components/Logo.jsx`, `src/components/Art.jsx`).
 - **Media limits.** Pictures are resized before upload; videos are capped at 10 MB and voice notes at 30 seconds.
 - The support email in `src/data/seed.js` is a placeholder.
